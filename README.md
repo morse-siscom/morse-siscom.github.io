@@ -5,7 +5,7 @@ Transmisor de código Morse por luz (OOK) para la Tarea 1 de **Sistemas de Comun
 - **Profesor:** Dr. Fernando Castillo Rivera
 - **Integrantes:** Julian Alfaro y Matías Vargas
 
-**Página:** https://papulianos12-art.github.io/codigo-morse-siscom/
+**Página:** https://morse-siscom.github.io/
 
 ## Qué hace
 
