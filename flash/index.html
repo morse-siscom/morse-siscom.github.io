@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="author" content="Julian Alfaro, Matías Vargas">
+<meta name="description" content="Modo flash: un celular Android emite Morse con su flash, controlado a distancia. Tarea 1 de Sistemas de Comunicaciones 2026, Universidad de Concepción.">
+<meta name="theme-color" content="#0f2d52">
+<!--
+  Transmisor Morse SisCom, modo flash
+  Tarea 1, Sistemas de Comunicaciones 2026, Universidad de Concepción
+  Profesor: Dr. Fernando Castillo Rivera
+  Integrantes: Julian Alfaro y Matías Vargas
+-->
+<title>Modo flash · Transmisor Morse SisCom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Banda institucional azul con la onda OOK del mensaje como protagonista; debajo, una columna de composición y un panel de transmisión fijo a la derecha en escritorio */
+:root {
+  --paper: #f4f6f9; --surface: #ffffff; --ink: #13202f; --muted: #5a6b7f; --line: #dbe2ea;
+  --navy: #0f2d52; --navy-deep: #0a2140; --on-navy: #f3f6fb; --on-navy-muted: #a9bbd2;
+  --gold: #f0a500; --gold-soft: #fdf1d6; --gold-ink: #7a5000; --accent-ink: #0f2d52;
+  --cell-off: #e4e9f0; --danger: #b42318; --ok: #1f7a4d;
+  --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --luz-on: #ffffff; --luz-off: #000000;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0b1624; --surface: #12223a; --ink: #e8eef5; --muted: #95a6ba; --line: #23364e;
+  --navy: #0d2a4c; --navy-deep: #081a31; --gold-soft: #3a2c0c; --gold-ink: #f5b82e; --accent-ink: #9cc2ec;
+  --cell-off: #1d3049; --danger: #ff8a80; --ok: #7fd3a4; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #0b1624; --surface: #12223a; --ink: #e8eef5; --muted: #95a6ba; --line: #23364e;
+  --navy: #0d2a4c; --navy-deep: #081a31; --gold-soft: #3a2c0c; --gold-ink: #f5b82e; --accent-ink: #9cc2ec;
+  --cell-off: #1d3049; --danger: #ff8a80; --ok: #7fd3a4; color-scheme: dark }
+
+* { box-sizing: border-box }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.55; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; }
+
+/* ---------- banda institucional ---------- */
+.banda { background: var(--navy); color: var(--on-navy); }
+.banda .wrap { padding-block: 20px 28px; display: grid; gap: 28px; }
+.ficha-top { display: flex; flex-wrap: wrap; gap: 20px 32px; align-items: center; justify-content: space-between; }
+.logos { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.logos:not(:has(.logo:not([hidden]))) { display: none }
+.logo { background: #ffffff; border-radius: 10px; padding: 7px 11px; display: inline-flex; }
+.logo img { height: 44px; width: auto; display: block; }
+.creditos { display: grid; grid-template-columns: auto auto auto; gap: 4px 28px; margin: 0; font-size: 0.92rem; }
+.creditos div { min-width: 0 }
+.creditos dt { color: var(--on-navy-muted); font-size: 0.8rem; }
+.creditos dd { margin: 0; font-weight: 600; }
+h1 { margin: 0; font-stretch: 125%; font-weight: 750; font-size: clamp(2.1rem, 6vw, 3.6rem); line-height: 1.02; letter-spacing: -0.01em; text-wrap: balance; }
+.bajada { margin: 10px 0 0; color: var(--on-navy-muted); max-width: 60ch; font-size: 1.05rem; }
+.onda-caja { background: var(--navy-deep); border-radius: 14px; padding: 18px 18px 14px; display: grid; gap: 10px; }
+.onda-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.onda-frase { font-family: var(--mono); font-size: 1.05rem; letter-spacing: 0.08em; color: #ffffff; }
+.onda-datos { color: var(--on-navy-muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.onda { position: relative; height: 78px; }
+.onda svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cabezal { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #ffffff; border-radius: 1px; left: 0; opacity: 0; pointer-events: none; }
+.cabezal.activo { opacity: 0.9 }
+.letras { position: relative; height: 38px; font-family: var(--mono); }
+.letras span { position: absolute; transform: translateX(-50%); text-align: center; line-height: 1.15; white-space: nowrap; }
+.letras b { display: block; color: #ffffff; font-weight: 500; font-size: 0.95rem; }
+.letras i { display: flex; justify-content: center; gap: 3px; margin-top: 5px; height: 5px; align-items: center; }
+.letras i u { display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
+.letras i u.r { width: 14px; border-radius: 3px; }
+.letras.compacto i { display: none }
+.letras.oculto { display: none }
+
+/* ---------- contenido ---------- */
+main.wrap { padding-block: 28px 56px; display: grid; gap: 20px; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); align-items: start; }
+.col { display: grid; gap: 20px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px; display: grid; gap: 14px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 1.2rem; font-weight: 700; font-stretch: 112%; display: flex; align-items: center; gap: 10px; }
+.paso { width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: #ffffff; font-size: 0.85rem; font-stretch: 100%;
+  display: inline-grid; place-items: center; flex: none; }
+.panel p { margin: 0 }
+.nota { color: var(--muted); font-size: 0.92rem; }
+.nota.alerta { color: var(--danger) }
+label { font-weight: 600; font-size: 0.95rem; }
+.campo { display: grid; gap: 6px; }
+input[type=text], input[type=number] { width: 100%; font: inherit; font-size: 1.2rem; padding: 11px 13px; border-radius: 10px;
+  border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); }
+input[type=text] { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.1em; font-size: 1.35rem; }
+input:focus-visible { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+button:focus-visible, summary:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px }
+.err { color: var(--danger); font-size: 0.9rem; min-height: 1.3em; margin: 0 }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: inherit; cursor: pointer; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); padding: 8px 13px; }
+button:hover { border-color: var(--muted) }
+button.chip { font-size: 0.92rem; padding: 6px 12px; border-radius: 999px; }
+button.chip[aria-pressed="true"] { border-color: var(--gold); background: var(--gold-soft); color: var(--gold-ink); font-weight: 600; }
+.fila { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.cifra { background: var(--paper); border-radius: 10px; padding: 10px 12px; }
+.cifra b { display: block; font-size: 1.45rem; font-stretch: 112%; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.cifra small { color: var(--muted); font-size: 0.82rem; }
+table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+td, th { text-align: left; padding: 7px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; }
+td.n { font-family: var(--mono); font-size: 0.88rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.muestra { display: inline-flex; gap: 3px; align-items: center; height: 14px; }
+.muestra i { display: block; height: 10px; border-radius: 2px; background: var(--gold); }
+.muestra i.off { background: var(--cell-off); }
+
+/* panel de transmisión */
+.tx { position: sticky; top: calc(16px + env(safe-area-inset-top, 0px)); border-color: var(--navy); }
+:root[data-theme="dark"] .tx { border-color: var(--accent-ink) }
+button.primario { background: var(--gold); border-color: var(--gold); color: #241800; font-weight: 750; font-size: 1.25rem; padding: 16px; border-radius: 12px; font-stretch: 112%; }
+button.primario:hover { filter: brightness(1.05) }
+button.primario:disabled { opacity: 0.45; cursor: not-allowed; filter: none }
+.acciones { display: grid; gap: 10px; }
+.lista { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 0.94rem; }
+.lista li { display: grid; grid-template-columns: 18px 1fr; gap: 8px; }
+.lista li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--gold); margin-top: 7px; }
+
+/* registro */
+.ancho { grid-column: 1 / -1 }
+.reg { display: grid; gap: 10px; }
+.reg article { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 4px; min-width: 0; }
+.reg pre { margin: 0; font-family: var(--mono); font-size: 0.78rem; white-space: pre-wrap; word-break: break-all; color: var(--muted); }
+.reg .top { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: center; }
+.reg .frase { font-family: var(--mono); font-weight: 500; letter-spacing: 0.06em; }
+.tag { font-size: 0.78rem; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); }
+.tag.ok { color: var(--ok); border-color: var(--ok) } .tag.bad { color: var(--danger); border-color: var(--danger) }
+.copiado { color: var(--ok); font-size: 0.9rem; align-self: center; }
+details { border-top: 1px solid var(--line); padding-top: 12px; }
+summary { cursor: pointer; font-weight: 600; }
+pre.cmd { margin: 10px 0 0; background: var(--paper); border-radius: 10px; padding: 12px; font-family: var(--mono); font-size: 0.82rem; white-space: pre-wrap; word-break: break-all; }
+
+footer.pie { border-top: 1px solid var(--line); }
+footer.pie .wrap { padding-block: 22px 30px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; color: var(--muted); font-size: 0.9rem; }
+
+/* pantalla de transmisión: negro y blanco puros */
+#luz { position: fixed; inset: 0; z-index: 1000; background: var(--luz-off); cursor: none; touch-action: manipulation }
+#luz .salir { position: absolute; left: 0; right: 0; bottom: max(24px, env(safe-area-inset-bottom, 0px)); text-align: center;
+  color: #3a3a3a; font-size: 14px; font-family: var(--font); pointer-events: none }
+
+@media (max-width: 880px) {
+  main.wrap { grid-template-columns: minmax(0, 1fr) }
+  .tx { position: static }
+  .creditos { grid-template-columns: 1fr 1fr }
+  .creditos div:first-child { grid-column: 1 / -1 }
+}
+@media (max-width: 460px) {
+  .wrap { padding-inline: 16px }
+  .fila { grid-template-columns: 1fr }
+  .cifras { grid-template-columns: 1fr 1fr }
+  .cifras .cifra:last-child { grid-column: 1 / -1 }
+  .panel { padding: 18px }
+}
+
+/* ---------- modo flash ---------- */
+main.wrap.una { grid-template-columns: minmax(0, 760px); justify-content: center; }
+a.volver { color: var(--gold); font-weight: 600; white-space: nowrap; }
+.roles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+button.rol { background: var(--navy-deep); border: 1.5px solid #2a4a74; color: var(--on-navy); text-align: left; padding: 16px 18px; border-radius: 14px; display: grid; gap: 4px; }
+button.rol b { font-size: 1.1rem; font-stretch: 112%; }
+button.rol span { color: var(--on-navy-muted); font-size: 0.9rem; }
+button.rol:hover { border-color: var(--on-navy-muted) }
+button.rol[aria-pressed="true"] { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+ol.pasos { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
+.fila2 { grid-template-columns: 1fr 1fr; }
+.estado { margin: 0; font-size: 0.95rem; }
+.estado.ok { color: var(--ok) } .estado.alerta { color: var(--danger) }
+.check { display: flex; gap: 8px; align-items: center; font-weight: 400; color: var(--muted); font-size: 0.92rem; }
+.codigo { font-family: var(--mono); font-size: clamp(2.6rem, 12vw, 4rem); letter-spacing: 0.18em; font-weight: 500; color: var(--accent-ink); line-height: 1.1; }
+ul.estados { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 0.95rem; }
+ul.estados li { display: grid; grid-template-columns: 14px 1fr; gap: 8px; align-items: start; }
+.punto { width: 10px; height: 10px; border-radius: 50%; background: var(--cell-off); margin-top: 7px; }
+.punto.ok { background: var(--ok) } .punto.error { background: var(--danger) } .punto.espera { background: var(--gold) }
+.punto.activo { background: var(--gold); box-shadow: 0 0 0 4px var(--gold-soft); }
+.campo-btn { align-content: end; }
+button.secundario { background: var(--navy); border-color: var(--navy); color: #ffffff; font-weight: 650; padding: 12px; }
+:root[data-theme="dark"] button.secundario { background: #1e4a80; border-color: #1e4a80 }
+.monitor { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; }
+.monitor b { display: block; font-size: 1.05rem; }
+.lampara { width: 64px; height: 64px; border-radius: 50%; background: var(--cell-off); display: grid; place-items: center; transition: background 60ms linear, box-shadow 60ms linear; }
+.lampara span { width: 26px; height: 26px; border-radius: 50%; background: var(--surface); opacity: 0.6; }
+.lampara.on { background: var(--gold); box-shadow: 0 0 0 8px var(--gold-soft); }
+.lampara.on span { background: #fff7df; opacity: 1; }
+.onda-caja.mini { padding: 12px 12px 10px; }
+.onda-caja.mini .onda { height: 56px; }
+.avanzado { padding-block: 0 24px; }
+.avanzado summary { color: var(--muted); font-weight: 500; }
+.avanzado select { margin-top: 8px; font: inherit; padding: 8px 10px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); max-width: 100%; }
+#velo { position: fixed; inset: 0; z-index: 1000; background: #000000; display: grid; place-items: end center; }
+#velo.blanco { background: #ffffff; }
+#velo[hidden] { display: none !important; }
+.velo-texto { display: grid; gap: 6px; justify-items: center; padding-bottom: max(32px, env(safe-area-inset-bottom, 0px)); color: #4a4a4a; font-family: var(--font); text-align: center; }
+.velo-texto button { background: transparent; color: #6a6a6a; border-color: #333333; margin-top: 6px; }
+#video { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; left: 0; bottom: 0; }
+@media (max-width: 560px) { .roles, .fila2 { grid-template-columns: 1fr } }
+</style>
+</head>
+<body>
+<header class="banda">
+  <div class="wrap">
+    <div class="ficha-top">
+      <div class="logos">
+        <span class="logo"><img src="../logos/udec.png" alt="Universidad de Concepción"></span>
+        <span class="logo"><img src="../logos/fi.png" alt="Facultad de Ingeniería, Universidad de Concepción"></span>
+      </div>
+      <dl class="creditos">
+        <div><dt>Asignatura</dt><dd>Sistemas de Comunicaciones 2026, Tarea 1</dd></div>
+        <div><dt>Profesor</dt><dd>Dr. Fernando Castillo Rivera</dd></div>
+        <div><dt>Integrantes</dt><dd>Julian Alfaro y Matías Vargas</dd></div>
+      </dl>
+    </div>
+    <div>
+      <h1>Modo flash</h1>
+      <p class="bajada">Un celular Android emite el Morse con su flash y otro dispositivo lo controla a distancia, sin tocar el emisor. <a class="volver" href="../">Volver al transmisor por pantalla</a></p>
+    </div>
+    <div class="roles" role="group" aria-label="Rol de este dispositivo">
+      <button class="rol" id="rolFlash" aria-pressed="false"><b>Este celular es el flash</b><span>Android con Chrome, fijo en el soporte</span></button>
+      <button class="rol" id="rolControl" aria-pressed="false"><b>Este dispositivo controla</b><span>Otro celular o el notebook</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap una" id="inicio">
+  <section class="panel">
+    <h2>¿Cómo se usa?</h2>
+    <ol class="pasos">
+      <li>En el celular Android que va en el soporte, abre esta página y elige <b>Este celular es el flash</b>. Aparecerá un código de 5 dígitos.</li>
+      <li>En el notebook u otro celular, abre esta misma página, elige <b>Este dispositivo controla</b> y escribe ese código.</li>
+      <li>Escribe la frase en el control y toca <b>Transmitir con flash</b>. El flash ejecuta el Morse con su propio reloj, así que la demora de internet solo retrasa el inicio.</li>
+    </ol>
+    <p class="nota">La cámara que graba es un tercer equipo. Los dos celulares se comunican a través de un servidor público de mensajería; solo viajan la frase, T y el estado del flash.</p>
+  </section>
+</main>
+
+<!-- ================= VISTA FLASH ================= -->
+<main class="wrap una" id="vistaFlash" hidden>
+  <section class="panel">
+    <h2><span class="paso">1</span>Activar el flash</h2>
+    <p class="nota">Chrome pedirá permiso para usar la cámara: es la única forma de controlar la linterna desde una página.</p>
+    <div class="acciones fila2">
+      <button class="primario" id="btnActivar">Activar flash</button>
+      <button id="btnProbarLocal" disabled>Probar flash 5 veces</button>
+    </div>
+    <p class="estado" id="estadoTorch">Flash sin activar.</p>
+    <label class="check"><input type="checkbox" id="simular"> Simular con la pantalla (para probar en un equipo sin flash)</label>
+  </section>
+
+  <section class="panel">
+    <h2><span class="paso">2</span>Código para el control</h2>
+    <div class="codigo" id="codigo" aria-live="polite">-----</div>
+    <div class="chips">
+      <button id="btnNuevoCodigo">Generar otro código</button>
+    </div>
+    <ul class="estados">
+      <li><span class="punto" id="ptServidorF"></span><span id="txtServidorF">Conectando al servidor…</span></li>
+      <li><span class="punto" id="ptOrden"></span><span id="txtOrden">Esperando una orden del control.</span></li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2><span class="paso">3</span>Antes de grabar</h2>
+    <ul class="lista">
+      <li>Celular fijo, con el flash apuntando a la cámara. Un papel delgado encima del flash ayuda a que no se vea quemado.</li>
+      <li>Deja esta página abierta y visible: si la pantalla se apaga o cambias de app, la transmisión se cancela.</li>
+      <li>Modo avión no sirve aquí, porque el celular necesita internet. Silencia las notificaciones.</li>
+    </ul>
+  </section>
+</main>
+
+<!-- ================= VISTA CONTROL ================= -->
+<main class="wrap" id="vistaControl" hidden>
+  <div class="col">
+    <section class="panel">
+      <h2><span class="paso">1</span>Conectar con el flash</h2>
+      <div class="fila">
+        <div class="campo">
+          <label for="codigoCtl">Código que muestra el celular del flash</label>
+          <input type="text" id="codigoCtl" inputmode="numeric" maxlength="5" autocomplete="off" placeholder="00000">
+        </div>
+        <div class="campo campo-btn">
+          <button class="secundario" id="btnConectar">Conectar</button>
+        </div>
+      </div>
+      <ul class="estados">
+        <li><span class="punto" id="ptServidorC"></span><span id="txtServidorC">Sin conectar al servidor.</span></li>
+        <li><span class="punto" id="ptFlash"></span><span id="txtFlash">Flash sin enlazar.</span></li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2><span class="paso">2</span>Mensaje y ritmo</h2>
+      <div class="campo">
+        <label for="texto">Frase, con letras de la A a la Z y espacios</label>
+        <input type="text" id="texto" value="SIS COM" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="60">
+      </div>
+      <p class="err" id="err" role="alert"></p>
+      <div class="chips" role="group" aria-label="Frases rápidas">
+        <button class="chip" data-frase="SIS COM">SIS COM</button>
+        <button class="chip" data-frase="PARIS PARIS">PARIS PARIS para calibrar</button>
+        <button class="chip" data-frase="HOLA">HOLA de prueba</button>
+      </div>
+      <div class="fila">
+        <div class="campo">
+          <label for="T">Duración del punto T, en ms</label>
+          <input type="number" id="T" min="80" max="2000" step="10" value="300" inputmode="numeric">
+        </div>
+        <div class="campo">
+          <label for="margen">Flash apagado antes y después, en s</label>
+          <input type="number" id="margen" min="1" max="15" step="0.5" value="3" inputmode="decimal">
+        </div>
+      </div>
+      <div class="chips" role="group" aria-label="Valores de T">
+        <button class="chip" data-t="200">200 ms</button>
+        <button class="chip" data-t="250">250 ms</button>
+        <button class="chip" data-t="300">300 ms</button>
+        <button class="chip" data-t="400">400 ms</button>
+      </div>
+      <p class="nota">El flash responde más lento que la pantalla. Parte con T = 300 ms y baja solo si la calibración muestra pulsos parejos.</p>
+    </section>
+  </div>
+
+  <aside class="panel tx">
+    <h2><span class="paso">3</span>Transmitir</h2>
+    <div class="monitor">
+      <div class="lampara" id="lampara" aria-label="Estado del flash"><span></span></div>
+      <div>
+        <b id="monTitulo">Flash apagado</b>
+        <span class="nota" id="monDetalle">El círculo se enciende con cada pulso que confirma el celular del flash.</span>
+      </div>
+    </div>
+    <div class="onda-caja mini">
+      <div class="onda-cab">
+        <span class="onda-frase" id="ondaFrase">SIS COM</span>
+        <span class="onda-datos" id="ondaDatos"></span>
+      </div>
+      <div class="onda" id="onda">
+        <svg id="ondaSvg" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <div class="cabezal" id="cabezal"></div>
+      </div>
+      <div class="letras" id="letras" aria-hidden="true"></div>
+    </div>
+    <div class="acciones">
+      <button class="primario" id="btnTx" disabled>Transmitir con flash</button>
+      <button id="btnProbar" disabled>Probar flash 5 veces</button>
+      <button id="btnCancelar" hidden>Cancelar transmisión</button>
+    </div>
+  </aside>
+
+  <section class="panel ancho">
+    <h2><span class="paso">4</span>Registro de transmisiones con flash</h2>
+    <p class="nota">Incluye la latencia medida del flash, útil para explicar el ritmo en el informe.</p>
+    <div class="chips">
+      <button id="btnCopiar">Copiar registro</button>
+      <button id="btnBorrar">Borrar registro</button>
+      <span class="copiado" id="copiado" aria-live="polite"></span>
+    </div>
+    <div class="reg" id="registro"></div>
+    <textarea id="respaldo" hidden readonly style="width:100%;height:140px;font-family:var(--mono);font-size:12px"></textarea>
+  </section>
+</main>
+
+<details class="wrap avanzado">
+  <summary>Servidor de mensajería</summary>
+  <p class="nota">Los dos equipos deben usar el mismo servidor. Si no se conectan, elige el mismo en ambos.</p>
+  <select id="servidor" aria-label="Servidor de mensajería"></select>
+</details>
+
+<footer class="pie">
+  <div class="wrap">
+    <span>Julian Alfaro y Matías Vargas</span>
+    <span>Sistemas de Comunicaciones 2026, Universidad de Concepción</span>
+  </div>
+</footer>
+
+<!-- pantalla del emisor durante la transmisión -->
+<div id="velo" hidden>
+  <div class="velo-texto">
+    <b id="veloTitulo">Transmitiendo</b>
+    <span id="veloDetalle">No toques el celular.</span>
+    <button id="veloCancelar">Cancelar</button>
+  </div>
+</div>
+<video id="video" muted playsinline autoplay aria-hidden="true"></video>
+
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script>
+if (!window.mqtt) document.write('<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"><\/script>');
+</script>
+<script>
+(function () {
+  const MORSE = { A:".-",B:"-...",C:"-.-.",D:"-..",E:".",F:"..-.",G:"--.",H:"....",I:"..",J:".---",K:"-.-",L:".-..",M:"--",
+    N:"-.",O:"---",P:".--.",Q:"--.-",R:".-.",S:"...",T:"-",U:"..-",V:"...-",W:".--",X:"-..-",Y:"-.--",Z:"--.." };
+  const SERVIDORES = [
+    ["HiveMQ", "wss://broker.hivemq.com:8884/mqtt"],
+    ["EMQX", "wss://broker.emqx.io:8084/mqtt"],
+    ["Mosquitto", "wss://test.mosquitto.org:8081/mqtt"]
+  ];
+  const BASE = "siscom-udec-morse/v1/";
+  const $ = (id) => document.getElementById(id);
+  const fmt = (x, d = 1) => x.toFixed(d).replace(".", ",");
+  const store = {
+    get(k, def) { try { const v = localStorage.getItem(k); return v === null ? def : JSON.parse(v) } catch (e) { return def } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch (e) {} }
+  };
+
+  // ---------- Morse (mismas reglas que morse.py)
+  function limpiar(raw) {
+    const up = raw.toUpperCase();
+    const malos = [...new Set(up.replace(/[A-Z ]/g, "").split(""))];
+    const frase = up.replace(/[^A-Z ]/g, "").trim().split(/\s+/).filter(Boolean).join(" ");
+    return { frase, malos };
+  }
+  function grillaDe(frase) {
+    const g = [], tramos = [];
+    frase.split(" ").forEach((pal, ip) => {
+      if (ip > 0) for (let i = 0; i < 7; i++) g.push(0);
+      [...pal].forEach((letra, il) => {
+        if (il > 0) for (let i = 0; i < 3; i++) g.push(0);
+        const k0 = g.length;
+        [...MORSE[letra]].forEach((s, is) => {
+          if (is > 0) g.push(0);
+          for (let i = 0; i < (s === "." ? 1 : 3); i++) g.push(1);
+        });
+        tramos.push({ letra, k0, k1: g.length });
+      });
+    });
+    return { g, tramos };
+  }
+  const morseTexto = (frase) => frase.split(" ").map(p => [...p].map(c => MORSE[c]).join(" ")).join(" / ");
+
+  // ---------- conexión MQTT con servidor elegible
+  const selServidor = $("servidor");
+  SERVIDORES.forEach(([n, u], i) => { const o = document.createElement("option"); o.value = i; o.textContent = `${n} (${u.replace("wss://", "").split("/")[0]})`; selServidor.appendChild(o); });
+  const extra = new URLSearchParams(location.search).get("servidor");
+  if (extra && /^wss?:\/\//.test(extra)) { SERVIDORES.push(["Propio", extra]); const o = document.createElement("option"); o.value = SERVIDORES.length - 1; o.textContent = "Propio (" + extra + ")"; selServidor.appendChild(o); }
+  selServidor.value = extra ? SERVIDORES.length - 1 : store.get("mf_servidor", 0);
+  let cliente = null, alConectar = null, alMensaje = null, alEstadoServidor = null;
+  function conectar() {
+    if (!window.mqtt) { alEstadoServidor && alEstadoServidor("error", "No se pudo cargar la librería de mensajería. Revisa la conexión a internet."); return; }
+    if (cliente) { try { cliente.end(true); } catch (e) {} }
+    const [nombre, url] = SERVIDORES[Number(selServidor.value)] || SERVIDORES[0];
+    alEstadoServidor && alEstadoServidor("espera", `Conectando a ${nombre}…`);
+    cliente = mqtt.connect(url, { clientId: "siscom_" + Math.random().toString(16).slice(2, 10), clean: true,
+      connectTimeout: 8000, reconnectPeriod: 2500, keepalive: 30 });
+    cliente.on("connect", () => { alEstadoServidor && alEstadoServidor("ok", `Conectado al servidor ${nombre}.`); alConectar && alConectar(); });
+    cliente.on("reconnect", () => alEstadoServidor && alEstadoServidor("espera", `Reconectando a ${nombre}…`));
+    cliente.on("offline", () => alEstadoServidor && alEstadoServidor("error", `Sin conexión con ${nombre}. Revisa internet o elige otro servidor abajo.`));
+    cliente.on("error", () => alEstadoServidor && alEstadoServidor("error", `Error con ${nombre}. Prueba otro servidor abajo.`));
+    cliente.on("message", (topic, payload) => { try { alMensaje && alMensaje(topic, JSON.parse(payload.toString())); } catch (e) {} });
+  }
+  selServidor.addEventListener("change", () => { store.set("mf_servidor", Number(selServidor.value)); if (rol) conectar(); });
+  const publicar = (topic, obj, qos = 1) => { if (cliente && cliente.connected) cliente.publish(topic, JSON.stringify(obj), { qos }); };
+  function marcar(pt, txt, estado, mensaje) { $(pt).className = "punto " + estado; $(txt).textContent = mensaje; }
+
+  // ---------- roles
+  let rol = null;
+  function elegirRol(r) {
+    rol = r;
+    $("rolFlash").setAttribute("aria-pressed", String(r === "flash"));
+    $("rolControl").setAttribute("aria-pressed", String(r === "control"));
+    $("inicio").hidden = true;
+    $("vistaFlash").hidden = r !== "flash";
+    $("vistaControl").hidden = r !== "control";
+    history.replaceState(null, "", "#" + r);
+    if (r === "flash") iniciarFlash(); else iniciarControl();
+  }
+  $("rolFlash").addEventListener("click", () => elegirRol("flash"));
+  $("rolControl").addEventListener("click", () => elegirRol("control"));
+
+  // =====================================================================
+  // EMISOR (celular con flash)
+  // =====================================================================
+  let track = null, torchOk = false, deseado = false, aplicado = false, ocupado = false, latencias = [];
+  let codigo = store.get("mf_codigo", null), wakeLock = null, emitiendo = null, latido = null, flashListo = false;
+  const simular = $("simular"), velo = $("velo");
+
+  function nuevoCodigo() {
+    codigo = String(Math.floor(10000 + Math.random() * 90000));
+    store.set("mf_codigo", codigo);
+    $("codigo").textContent = codigo;
+    if (cliente && cliente.connected) { suscribirFlash(); }
+  }
+  let suscritoA = null;
+  function suscribirFlash() {
+    if (suscritoA) cliente.unsubscribe(suscritoA);
+    suscritoA = BASE + codigo + "/cmd";
+    cliente.subscribe(suscritoA, { qos: 1 });
+    anunciar();
+  }
+  function anunciar() {
+    publicar(BASE + codigo + "/estado", { tipo: "hola", torch: torchOk, simulado: simular.checked, listo: flashListo, ocupado: !!emitiendo }, 0);
+  }
+
+  async function activarFlash() {
+    const est = $("estadoTorch");
+    if (simular.checked) { flashListo = true; est.textContent = "Modo simulado: la pantalla hará de flash."; $("btnProbarLocal").disabled = false; anunciar(); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+      track = stream.getVideoTracks()[0];
+      $("video").srcObject = stream;
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      torchOk = !!caps.torch;
+      if (!torchOk) {
+        est.textContent = "Este navegador no permite controlar el flash. Usa Chrome en Android, o activa el modo simulado para probar.";
+        est.className = "estado alerta"; flashListo = false; anunciar(); return;
+      }
+      await track.applyConstraints({ advanced: [{ torch: false }] });
+      flashListo = true;
+      est.className = "estado ok"; est.textContent = "Flash listo. Puedes dejar el celular en el soporte.";
+      $("btnProbarLocal").disabled = false;
+      $("btnActivar").textContent = "Flash activado";
+      try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+    } catch (e) {
+      est.className = "estado alerta";
+      est.textContent = "No se pudo usar la cámara: " + (e && e.name === "NotAllowedError" ? "el permiso fue rechazado. Actívalo en la configuración del sitio en Chrome." : (e && e.message) || e);
+      flashListo = false;
+    }
+    anunciar();
+  }
+
+  async function aplicarTorch() {
+    if (ocupado) return;
+    ocupado = true;
+    while (aplicado !== deseado) {
+      const v = deseado, t = performance.now();
+      try { await track.applyConstraints({ advanced: [{ torch: v }] }); } catch (e) {}
+      latencias.push(performance.now() - t);
+      aplicado = v;
+    }
+    ocupado = false;
+  }
+  function luz(on) {
+    if (simular.checked) { velo.classList.toggle("blanco", on); return; }
+    if (!track) return;
+    deseado = on; aplicarTorch();
+  }
+
+  function ejecutar(orden, avisar) {
+    if (emitiendo || !flashListo) return;
+    const { frase, T } = orden;
+    const margen = orden.margen;
+    const g = orden.g || grillaDe(frase).g;
+    latencias = [];
+    velo.hidden = false; velo.classList.remove("blanco");
+    $("veloTitulo").textContent = avisar ? `Transmitiendo «${frase}»` : "Prueba del flash";
+    $("veloDetalle").textContent = "No toques el celular.";
+    const t0 = performance.now() + margen * 1000, tFin = t0 + g.length * T;
+    let estado = 0, terminado = false;
+    const desfases = [];
+    emitiendo = { id: orden.id, cancelada: false };
+    if (avisar) publicar(BASE + codigo + "/estado", { tipo: "recibido", id: orden.id, margen, n: g.length, T });
+    marcar("ptOrden", "txtOrden", "activo", avisar ? `Transmitiendo «${frase}» con T = ${T} ms.` : "Probando el flash.");
+    function paso(now) {
+      if (!emitiendo || emitiendo.cancelada) return;
+      let nivel = 0, k = -1;
+      if (now >= t0 && now < tFin) { k = Math.floor((now - t0) / T); nivel = g[k]; }
+      if (nivel !== estado) {
+        if (k >= 0) desfases.push(now - (t0 + k * T));
+        luz(nivel === 1); estado = nivel;
+        if (avisar) publicar(BASE + codigo + "/estado", { tipo: "pulso", id: orden.id, on: nivel === 1, k: Math.max(k, 0) }, 0);
+      }
+      if (now >= tFin && !terminado) { terminado = true; if (estado) { luz(false); estado = 0; if (avisar) publicar(BASE + codigo + "/estado", { tipo: "pulso", id: orden.id, on: false, k: g.length }, 0); } }
+      if (terminado && now >= tFin + margen * 1000) { terminar("completa"); return; }
+      requestAnimationFrame(paso);
+    }
+    function terminar(est) {
+      luz(false);
+      const l = latencias.slice(), media = l.length ? l.reduce((a, b) => a + b, 0) / l.length : 0;
+      if (avisar) publicar(BASE + codigo + "/estado", { tipo: "fin", id: orden.id, estado: est,
+        lat: { media, max: l.length ? Math.max(...l) : 0, n: l.length }, desfaseMax: desfases.length ? Math.max(...desfases.map(Math.abs)) : 0,
+        simulado: simular.checked });
+      emitiendo = null; velo.hidden = true;
+      marcar("ptOrden", "txtOrden", "ok", est !== "completa" ? `Transmisión ${est}.` : simular.checked ? "Listo (modo simulado con la pantalla)." : `Listo. Latencia media del flash: ${fmt(media)} ms.`);
+      anunciar();
+    }
+    emitiendo.terminar = terminar;
+    requestAnimationFrame(paso);
+  }
+  function cancelarEmision(motivo) { if (emitiendo) { emitiendo.cancelada = true; emitiendo.terminar(motivo || "cancelada"); } }
+  $("veloCancelar").addEventListener("click", () => cancelarEmision("cancelada"));
+
+  function iniciarFlash() {
+    if (!codigo) nuevoCodigo(); else $("codigo").textContent = codigo;
+    alEstadoServidor = (e, m) => marcar("ptServidorF", "txtServidorF", e, m);
+    alConectar = () => { suscribirFlash(); };
+    alMensaje = (topic, m) => {
+      if (m.tipo === "ping") anunciar();
+      else if (m.tipo === "transmitir") ejecutar({ id: m.id, frase: m.frase, T: Number(m.T), margen: Number(m.margen) }, true);
+      else if (m.tipo === "probar") ejecutar({ id: m.id, frase: "EEEEE", g: [1,0,1,0,1,0,1,0,1], T: 300, margen: 0.5 }, true);
+      else if (m.tipo === "cancelar") cancelarEmision("cancelada desde el control");
+    };
+    conectar();
+    clearInterval(latido); latido = setInterval(anunciar, 4000);
+  }
+  $("btnActivar").addEventListener("click", activarFlash);
+  $("btnNuevoCodigo").addEventListener("click", nuevoCodigo);
+  $("btnProbarLocal").addEventListener("click", () => ejecutar({ id: "local", frase: "EEEEE", g: [1,0,1,0,1,0,1,0,1], T: 300, margen: 0.5 }, false));
+  simular.addEventListener("change", () => { flashListo = false; $("estadoTorch").className = "estado"; $("estadoTorch").textContent = simular.checked ? "Modo simulado: toca Activar flash." : "Flash sin activar."; anunciar(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden && emitiendo) cancelarEmision("interrumpida"); });
+
+  // =====================================================================
+  // CONTROL
+  // =====================================================================
+  const inCodigo = $("codigoCtl"), inTexto = $("texto"), inT = $("T"), inMargen = $("margen");
+  inCodigo.value = store.get("mf_codigo_ctl", "");
+  inTexto.value = store.get("mf_texto", "SIS COM");
+  inT.value = store.get("mf_T", 300);
+  inMargen.value = store.get("mf_margen", 3);
+  let codigoCtl = null, ultimoHola = 0, estadoFlash = null, actual = null, enCurso = null, vigilante = null;
+
+  function dibujarOnda(g, tramos) {
+    const svg = $("ondaSvg"), n = Math.max(g.length, 1), W = n * 10, yOn = 8, yOff = 66;
+    svg.setAttribute("viewBox", `0 0 ${W} 78`);
+    let d = `M0 ${g[0] ? yOn : yOff}`;
+    g.forEach((v, k) => { d += ` V${v ? yOn : yOff} H${(k + 1) * 10}`; });
+    svg.innerHTML = `<line x1="0" x2="${W}" y1="${yOff}" y2="${yOff}" stroke="#a9bbd2" stroke-opacity="0.25" stroke-width="1" vector-effect="non-scaling-stroke"/>` +
+      `<path d="${d}" fill="none" stroke="#f0a500" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+    const letras = $("letras");
+    letras.className = "letras" + (n > 220 ? " oculto" : n > 100 ? " compacto" : "");
+    letras.innerHTML = tramos.map(t =>
+      `<span style="left:${((t.k0 + t.k1) / 2 / n * 100).toFixed(3)}%"><b>${t.letra}</b><i>${[...MORSE[t.letra]].map(c => c === "." ? "<u></u>" : '<u class="r"></u>').join("")}</i></span>`).join("");
+  }
+
+  function puedeTransmitir() { return !!(actual && cliente && cliente.connected && codigoCtl && estadoFlash && estadoFlash.listo && !estadoFlash.ocupado && !enCurso && Date.now() - ultimoHola < 12000); }
+  function actualizarBotones() {
+    $("btnTx").disabled = !puedeTransmitir();
+    $("btnProbar").disabled = !puedeTransmitir();
+    $("btnCancelar").hidden = !enCurso;
+  }
+
+  function render() {
+    const { frase, malos } = limpiar(inTexto.value);
+    const T = Math.round(Number(inT.value)), margen = Number(inMargen.value);
+    let error = "";
+    if (malos.length) error = `No se pueden enviar: ${malos.map(c => `«${c}»`).join(" ")}. Usa solo letras de la A a la Z, sin tildes ni Ñ.`;
+    else if (!frase) error = "Escribe al menos una letra.";
+    else if (!(T >= 80 && T <= 2000)) error = "T debe estar entre 80 y 2000 ms.";
+    else if (!(margen >= 1 && margen <= 15)) error = "El margen debe estar entre 1 y 15 s.";
+    $("err").textContent = error;
+    document.querySelectorAll("[data-frase]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.frase === frase)));
+    document.querySelectorAll("[data-t]").forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.t) === T)));
+    const { g, tramos } = frase && !malos.length ? grillaDe(frase) : { g: [], tramos: [] };
+    $("ondaFrase").textContent = frase || "Sin mensaje";
+    $("ondaDatos").textContent = g.length && T >= 80 ? `${g.length} T, ${fmt(g.length * T / 1000)} s` : "";
+    dibujarOnda(g, tramos);
+    actual = error ? null : { frase, g, T, margen };
+    store.set("mf_texto", inTexto.value); store.set("mf_T", inT.value); store.set("mf_margen", inMargen.value);
+    actualizarBotones();
+  }
+  inTexto.addEventListener("input", render); inT.addEventListener("input", render); inMargen.addEventListener("input", render);
+  document.querySelectorAll("[data-frase]").forEach(b => b.addEventListener("click", () => { inTexto.value = b.dataset.frase; render(); }));
+  document.querySelectorAll("[data-t]").forEach(b => b.addEventListener("click", () => { inT.value = b.dataset.t; render(); }));
+
+  function lampara(on) {
+    $("lampara").classList.toggle("on", on);
+    $("monTitulo").textContent = on ? "Flash encendido" : "Flash apagado";
+  }
+
+  function enlazar() {
+    const c = inCodigo.value.replace(/\D/g, "");
+    if (c.length !== 5) { marcar("ptFlash", "txtFlash", "error", "El código tiene 5 dígitos."); return; }
+    if (codigoCtl) cliente.unsubscribe(BASE + codigoCtl + "/estado");
+    codigoCtl = c; store.set("mf_codigo_ctl", c);
+    estadoFlash = null; ultimoHola = 0;
+    marcar("ptFlash", "txtFlash", "espera", `Buscando el flash con código ${c}…`);
+    cliente.subscribe(BASE + c + "/estado", { qos: 1 });
+    publicar(BASE + c + "/cmd", { tipo: "ping" });
+    actualizarBotones();
+  }
+  function revisarFlash() {
+    if (!codigoCtl) return;
+    if (Date.now() - ultimoHola > 12000) {
+      marcar("ptFlash", "txtFlash", ultimoHola ? "error" : "espera", ultimoHola ? "El flash dejó de responder. Revisa que su página siga abierta." : `Buscando el flash con código ${codigoCtl}…`);
+      if (!ultimoHola) publicar(BASE + codigoCtl + "/cmd", { tipo: "ping" }, 0);
+    }
+    actualizarBotones();
+  }
+
+  let animacion = null;
+  function animar(n, T, margenMs) {
+    const t0 = performance.now() + margenMs, total = n * T;
+    const cab = $("cabezal"); cab.classList.add("activo");
+    const paso = (now) => {
+      if (!enCurso) { cab.classList.remove("activo"); return; }
+      const f = Math.min(Math.max((now - t0) / total, 0), 1);
+      cab.style.left = `calc(${(f * 100).toFixed(3)}% - 1px)`;
+      const restante = Math.max(0, (t0 + total - now) / 1000);
+      $("monDetalle").textContent = now < t0 ? `Comienza en ${fmt((t0 - now) / 1000)} s.` : f < 1 ? `Quedan ${fmt(restante)} s del mensaje.` : "Mensaje enviado, esperando cierre.";
+      animacion = requestAnimationFrame(paso);
+    };
+    animacion = requestAnimationFrame(paso);
+  }
+
+  function enviar(tipo) {
+    if (!puedeTransmitir()) return;
+    const id = Date.now().toString(36);
+    const prueba = tipo === "probar";
+    enCurso = { id, prueba, frase: prueba ? "EEEEE" : actual.frase, T: prueba ? 300 : actual.T, margen: prueba ? 0.5 : actual.margen,
+      g: prueba ? [1,0,1,0,1,0,1,0,1] : actual.g, inicio: new Date() };
+    if (prueba) publicar(BASE + codigoCtl + "/cmd", { tipo: "probar", id });
+    else publicar(BASE + codigoCtl + "/cmd", { tipo: "transmitir", id, frase: actual.frase, T: actual.T, margen: actual.margen });
+    $("monDetalle").textContent = "Orden enviada. Esperando confirmación del flash…";
+    actualizarBotones();
+    clearTimeout(vigilante);
+    vigilante = setTimeout(() => { if (enCurso && !enCurso.confirmado) { enCurso = null; $("monDetalle").textContent = "El flash no confirmó la orden. Revisa la conexión e intenta de nuevo."; actualizarBotones(); } }, 6000);
+  }
+  $("btnTx").addEventListener("click", () => enviar("transmitir"));
+  $("btnProbar").addEventListener("click", () => enviar("probar"));
+  $("btnCancelar").addEventListener("click", () => { if (enCurso) publicar(BASE + codigoCtl + "/cmd", { tipo: "cancelar", id: enCurso.id }); });
+
+  function iniciarControl() {
+    alEstadoServidor = (e, m) => { marcar("ptServidorC", "txtServidorC", e, m); actualizarBotones(); };
+    alConectar = () => { if (inCodigo.value.replace(/\D/g, "").length === 5) enlazar(); };
+    alMensaje = (topic, m) => {
+      if (!codigoCtl || topic !== BASE + codigoCtl + "/estado") return;
+      if (m.tipo === "hola") {
+        ultimoHola = Date.now(); estadoFlash = m;
+        if (!m.listo) marcar("ptFlash", "txtFlash", "espera", "Flash enlazado, pero falta tocar Activar flash en ese celular.");
+        else marcar("ptFlash", "txtFlash", "ok", m.simulado ? "Flash enlazado en modo simulado (pantalla)." : "Flash enlazado y listo.");
+      } else if (enCurso && m.id === enCurso.id) {
+        if (m.tipo === "recibido") { enCurso.confirmado = true; clearTimeout(vigilante); animar(m.n, m.T, m.margen * 1000); }
+        else if (m.tipo === "pulso") lampara(!!m.on);
+        else if (m.tipo === "fin") {
+          lampara(false); cancelAnimationFrame(animacion); $("cabezal").classList.remove("activo");
+          const lat = m.lat || { media: 0, max: 0, n: 0 };
+          $("monDetalle").textContent = m.estado !== "completa" ? `Transmisión ${m.estado}.`
+            : m.simulado ? "Terminado (modo simulado con la pantalla)."
+            : `Terminado. Latencia del flash: media ${fmt(lat.media)} ms, máxima ${fmt(lat.max)} ms.`;
+          if (!enCurso.prueba) guardar({ ...enCurso, estado: m.estado, lat, simulado: m.simulado });
+          enCurso = null;
+        }
+      }
+      actualizarBotones();
+    };
+    $("btnConectar").addEventListener("click", () => { if (cliente && cliente.connected) enlazar(); else conectar(); });
+    inCodigo.addEventListener("keydown", (e) => { if (e.key === "Enter") $("btnConectar").click(); });
+    conectar();
+    setInterval(revisarFlash, 2000);
+    render();
+    pintarRegistro();
+  }
+
+  // ---------- registro del control
+  let registro = store.get("mf_registro", []);
+  function guardar(c) {
+    registro.unshift({ fecha: c.inicio.toLocaleString("es-CL"), frase: c.frase, T: c.T, margen: c.margen, estado: c.estado,
+      morse: morseTexto(c.frase), grilla: c.g.join(""), intervalos: c.g.length, duracion: c.g.length * c.T / 1000,
+      latMedia: c.lat.media, latMax: c.lat.max, simulado: !!c.simulado });
+    registro = registro.slice(0, 50); store.set("mf_registro", registro); pintarRegistro();
+  }
+  function textoEntrada(r) {
+    return [
+      `Fecha: ${r.fecha} (${r.estado})`,
+      `Fuente: ${r.simulado ? "pantalla (modo simulado)" : "flash de celular Android"}, emisión automática controlada a distancia`,
+      `Mensaje: ${r.frase}`, `Morse: ${r.morse}`,
+      `T = ${r.T} ms; intervalos = ${r.intervalos}; duración = ${fmt(r.duracion)} s; margen apagado = ${fmt(r.margen)} s`,
+      `Latencia del flash: media ${fmt(r.latMedia)} ms, máxima ${fmt(r.latMax)} ms`,
+      `Patrón previsto (1 = encendido, 0 = apagado, un dígito por T): ${r.grilla}`
+    ].join("\n");
+  }
+  function pintarRegistro() {
+    const cont = $("registro"); cont.innerHTML = "";
+    if (!registro.length) { cont.innerHTML = `<p class="nota">Todavía no hay transmisiones con flash.</p>`; return; }
+    registro.forEach(r => {
+      const a = document.createElement("article");
+      a.innerHTML = `<div class="top"><span class="frase"></span><span class="tag ${r.estado === "completa" ? "ok" : "bad"}">${r.estado}</span></div>
+        <span class="nota">${r.fecha}, T = ${r.T} ms, ${fmt(r.duracion)} s, latencia media ${fmt(r.latMedia)} ms${r.simulado ? ", simulado" : ""}</span><pre></pre>`;
+      a.querySelector(".frase").textContent = r.frase; a.querySelector("pre").textContent = r.grilla;
+      cont.appendChild(a);
+    });
+  }
+  $("btnCopiar").addEventListener("click", () => {
+    const txt = registro.length ? registro.map(textoEntrada).join("\n\n") : "Sin transmisiones registradas.";
+    const ok = () => { $("copiado").textContent = "Registro copiado"; setTimeout(() => $("copiado").textContent = "", 2500); };
+    const fallback = () => { const t = $("respaldo"); t.hidden = false; t.value = txt; t.focus(); t.select(); $("copiado").textContent = "Texto seleccionado: cópialo con el menú del sistema"; };
+    try { navigator.clipboard.writeText(txt).then(ok, fallback); } catch (e) { fallback(); }
+  });
+  const btnBorrar = $("btnBorrar");
+  btnBorrar.addEventListener("click", () => {
+    if (btnBorrar.dataset.confirmar !== "1") { btnBorrar.dataset.confirmar = "1"; btnBorrar.textContent = "Toca otra vez para borrar";
+      setTimeout(() => { btnBorrar.dataset.confirmar = ""; btnBorrar.textContent = "Borrar registro"; }, 3000); return; }
+    registro = []; store.set("mf_registro", registro); pintarRegistro(); btnBorrar.dataset.confirmar = ""; btnBorrar.textContent = "Borrar registro";
+  });
+
+  // ---------- logos y arranque
+  document.querySelectorAll(".logo img").forEach(img => {
+    const ocultar = () => { img.parentElement.hidden = true; };
+    img.addEventListener("error", ocultar);
+    if (img.complete && img.naturalWidth === 0) ocultar();
+  });
+  const h = location.hash.replace("#", "");
+  if (h === "flash" || h === "control") elegirRol(h);
+})();
+</script>
+
+</body>
+</html>
