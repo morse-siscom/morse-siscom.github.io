@@ -196,6 +196,54 @@ button.secundario { background: var(--navy); border-color: var(--navy); color: #
 .velo-texto button { background: transparent; color: #6a6a6a; border-color: #333333; margin-top: 6px; }
 #video { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; left: 0; bottom: 0; }
 @media (max-width: 560px) { .roles, .fila2 { grid-template-columns: 1fr } }
+
+/* ---------- pantalla completa del control ---------- */
+#proyeccion { position: fixed; inset: 0; z-index: 900; background: #081a31; color: #f3f6fb; overflow: auto;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); grid-template-rows: minmax(0, 1fr); gap: 28px;
+  padding: max(24px, env(safe-area-inset-top, 0px)) 32px max(24px, env(safe-area-inset-bottom, 0px)); }
+.pr-main { display: grid; grid-template-rows: auto minmax(220px, 1fr); gap: 22px; min-width: 0; min-height: 0; }
+.pr-top { display: flex; align-items: center; gap: clamp(20px, 4vw, 48px); flex-wrap: wrap; }
+.pr-lampara { width: clamp(110px, 19vh, 210px); aspect-ratio: 1; border-radius: 50%; background: #1d3049; display: grid; place-items: center;
+  transition: background 50ms linear, box-shadow 50ms linear; flex: none; }
+.pr-lampara span { width: 38%; aspect-ratio: 1; border-radius: 50%; background: #2a4363; }
+.pr-lampara.on { background: #f0a500; box-shadow: 0 0 0 16px rgba(240, 165, 0, 0.18), 0 0 90px rgba(240, 165, 0, 0.55); }
+.pr-lampara.on span { background: #fff7df; }
+.pr-letra { display: grid; gap: 10px; min-width: 0; }
+.pr-letra b { font-family: var(--mono); font-weight: 500; font-size: clamp(3.5rem, 13vh, 8.5rem); line-height: 0.95; color: #ffffff; min-height: 0.95em; }
+.pr-letra i { display: flex; gap: 10px; align-items: center; height: 18px; }
+.pr-letra i u { display: block; width: 18px; height: 18px; border-radius: 50%; background: #f0a500; }
+.pr-letra i u.r { width: 54px; border-radius: 9px; }
+.pr-letra small { color: #a9bbd2; font-size: 1.05rem; }
+.pr-onda-caja { background: #0b2340; border-radius: 18px; padding: 22px 22px 14px; display: grid; grid-template-rows: 1fr auto; gap: 14px; min-height: 0; }
+.pr-onda { position: relative; min-height: 140px; }
+.pr-onda svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.pr-onda .cabezal { width: 3px; }
+@media (max-width: 900px) { .pr-onda svg path { stroke-width: 2.5; } }
+.pr-letras { height: 64px; }
+.pr-letras b { font-size: 1.5rem; color: #a9bbd2; transition: color 80ms linear; }
+.pr-letras i { gap: 4px; margin-top: 8px; height: 8px; }
+.pr-letras i u { width: 8px; height: 8px; }
+.pr-letras i u.r { width: 22px; border-radius: 4px; }
+.letras span.activa b { color: #f0a500; }
+.pr-datos { background: #0f2d52; border-radius: 18px; padding: 24px; display: grid; align-content: start; gap: 22px; min-width: 0; min-height: 0; overflow: auto; }
+.pr-datos dl { margin: 0; display: grid; gap: 16px; }
+.pr-datos dt { color: #a9bbd2; font-size: 0.88rem; }
+.pr-datos dd { margin: 2px 0 0; font-size: 1.45rem; font-weight: 650; font-stretch: 108%; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pr-datos dd.pr-frase { font-family: var(--mono); font-weight: 500; font-size: clamp(1.6rem, 3vw, 2.3rem); letter-spacing: 0.1em; color: #ffffff; }
+.pr-datos dd.pr-morse { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-top: 8px; }
+.pr-morse .ml { display: inline-flex; gap: 4px; align-items: center; }
+.pr-morse .ml u { display: block; width: 8px; height: 8px; border-radius: 50%; background: #f0a500; }
+.pr-morse .ml u.r { width: 20px; border-radius: 4px; }
+.pr-morse .mw { color: #7f93ad; font-size: 1rem; font-weight: 400; }
+.pr-estado { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 1.05rem; background: #1d3049; }
+.pr-estado.vivo { background: #f0a500; color: #241800; }
+.pr-estado.fin { background: #1f7a4d; color: #ffffff; }
+.pr-botones { display: grid; gap: 10px; }
+.pr-botones button { background: transparent; color: #f3f6fb; border-color: #2a4a74; }
+.pr-botones button.primario { background: #f0a500; border-color: #f0a500; color: #241800; }
+.pr-pie { margin: 0; color: #7f93ad; font-size: 0.85rem; }
+@media (max-width: 900px) { #proyeccion { display: block; padding-inline: 18px; } .pr-main { grid-template-rows: auto 230px; min-height: auto; margin-bottom: 20px; } .pr-datos { overflow: visible; } }
+@media (max-height: 860px) and (min-width: 901px) { .pr-datos { padding: 20px; gap: 16px; } .pr-datos dl { gap: 11px; } .pr-datos dd { font-size: 1.25rem; } }
 </style>
 </head>
 <body>
@@ -346,6 +394,7 @@ button.secundario { background: var(--navy); border-color: var(--navy); color: #
       <button class="primario" id="btnTx" disabled>Transmitir con flash</button>
       <button id="btnProbar" disabled>Probar flash 5 veces</button>
       <button id="btnCancelar" hidden>Cancelar transmisión</button>
+      <button id="btnPantalla">Ver en pantalla completa</button>
     </div>
   </aside>
 
@@ -384,6 +433,41 @@ button.secundario { background: var(--navy); border-color: var(--navy); color: #
   </div>
 </div>
 <video id="video" muted playsinline autoplay aria-hidden="true"></video>
+
+<!-- pantalla completa del control -->
+<div id="proyeccion" hidden role="dialog" aria-label="Monitor de transmisión en pantalla completa">
+  <div class="pr-main">
+    <div class="pr-top">
+      <div class="pr-lampara" id="prLampara" aria-label="Estado del flash"><span></span></div>
+      <div class="pr-letra">
+        <b id="prLetra"></b>
+        <i id="prPatron" aria-hidden="true"></i>
+        <small id="prLetraNota">Listo para transmitir</small>
+      </div>
+    </div>
+    <div class="pr-onda-caja">
+      <div class="pr-onda"><svg id="prSvg" preserveAspectRatio="none" aria-hidden="true"></svg><div class="cabezal" id="prCabezal"></div></div>
+      <div class="letras pr-letras" id="prLetras" aria-hidden="true"></div>
+    </div>
+  </div>
+  <aside class="pr-datos">
+    <dl>
+      <div><dt>Frase</dt><dd class="pr-frase" id="prFrase"></dd></div>
+      <div><dt>Código Morse</dt><dd class="pr-morse" id="prMorse"></dd></div>
+      <div><dt>Duración del punto T</dt><dd id="prT"></dd></div>
+      <div><dt>Largo del mensaje</dt><dd id="prDur"></dd></div>
+      <div><dt>Flash apagado antes y después</dt><dd id="prMargen"></dd></div>
+      <div><dt>Estado</dt><dd><span class="pr-estado" id="prEstado">Listo para transmitir</span></dd></div>
+      <div><dt>Tiempo</dt><dd id="prTiempo">–</dd></div>
+      <div><dt>Latencia del flash</dt><dd id="prLat">–</dd></div>
+    </dl>
+    <div class="pr-botones">
+      <button class="primario" id="prTx">Transmitir con flash</button>
+      <button id="prSalir">Salir de pantalla completa</button>
+    </div>
+    <p class="pr-pie">Sistemas de Comunicaciones 2026, Universidad de Concepción. Julian Alfaro y Matías Vargas.</p>
+  </aside>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script>
@@ -611,24 +695,66 @@ if (!window.mqtt) document.write('<script src="https://unpkg.com/mqtt@5.10.1/dis
   inMargen.value = store.get("mf_margen", 3);
   let codigoCtl = null, ultimoHola = 0, estadoFlash = null, actual = null, enCurso = null, vigilante = null;
 
-  function dibujarOnda(g, tramos) {
-    const svg = $("ondaSvg"), n = Math.max(g.length, 1), W = n * 10, yOn = 8, yOff = 66;
+  const marcas = (letra) => [...MORSE[letra]].map(c => c === "." ? "<u></u>" : '<u class="r"></u>').join("");
+  // grande = true dibuja la versión de pantalla completa: onda tenue + onda encendida recortada según el avance
+  function dibujarOnda(g, tramos, svg = $("ondaSvg"), letras = $("letras"), grande = false) {
+    const n = Math.max(g.length, 1), W = n * 10, yOn = 8, yOff = 66;
     svg.setAttribute("viewBox", `0 0 ${W} 78`);
     let d = `M0 ${g[0] ? yOn : yOff}`;
     g.forEach((v, k) => { d += ` V${v ? yOn : yOff} H${(k + 1) * 10}`; });
-    svg.innerHTML = `<line x1="0" x2="${W}" y1="${yOff}" y2="${yOff}" stroke="#a9bbd2" stroke-opacity="0.25" stroke-width="1" vector-effect="non-scaling-stroke"/>` +
-      `<path d="${d}" fill="none" stroke="#f0a500" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
-    const letras = $("letras");
-    letras.className = "letras" + (n > 220 ? " oculto" : n > 100 ? " compacto" : "");
-    letras.innerHTML = tramos.map(t =>
-      `<span style="left:${((t.k0 + t.k1) / 2 / n * 100).toFixed(3)}%"><b>${t.letra}</b><i>${[...MORSE[t.letra]].map(c => c === "." ? "<u></u>" : '<u class="r"></u>').join("")}</i></span>`).join("");
+    const base = `<line x1="0" x2="${W}" y1="${yOff}" y2="${yOff}" stroke="#a9bbd2" stroke-opacity="0.25" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    svg.innerHTML = grande
+      ? base + `<defs><clipPath id="prAvance"><rect id="prAvanceRect" x="0" y="0" width="0" height="78"/></clipPath></defs>` +
+        `<path d="${d}" fill="none" stroke="#f0a500" stroke-opacity="0.3" stroke-width="4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>` +
+        `<path d="${d}" fill="none" stroke="#f0a500" stroke-width="5" stroke-linejoin="round" vector-effect="non-scaling-stroke" clip-path="url(#prAvance)"/>`
+      : base + `<path d="${d}" fill="none" stroke="#f0a500" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+    letras.className = "letras" + (grande ? " pr-letras" : "") + (n > 220 ? " oculto" : n > 100 ? " compacto" : "");
+    letras.innerHTML = tramos.map((t, i) =>
+      `<span data-i="${i}" style="left:${((t.k0 + t.k1) / 2 / n * 100).toFixed(3)}%"><b>${t.letra}</b><i>${marcas(t.letra)}</i></span>`).join("");
   }
+
+  // ---------- pantalla completa
+  const proy = $("proyeccion");
+  let proyDatos = null;
+  function pintarProyeccion(datos) {
+    proyDatos = datos;
+    if (!datos) { $("prFrase").textContent = "Sin mensaje"; $("prMorse").textContent = ""; $("prT").textContent = "–"; $("prDur").textContent = "–"; $("prMargen").textContent = "–"; dibujarOnda([], [], $("prSvg"), $("prLetras"), true); return; }
+    const tramos = datos.tramos || (datos.prueba ? [] : grillaDe(datos.frase).tramos);
+    datos.tramos = tramos;
+    $("prFrase").textContent = datos.prueba ? "Prueba del flash" : datos.frase;
+    $("prMorse").innerHTML = datos.prueba ? '<span class="ml">' + marcas("E").repeat(5) + "</span>"
+      : datos.frase.split(" ").map(p => [...p].map(l => `<span class="ml" title="${l}">${marcas(l)}</span>`).join("")).join('<span class="mw">/</span>');
+    $("prT").textContent = `${datos.T} ms`;
+    $("prDur").textContent = `${datos.g.length} T = ${fmt(datos.g.length * datos.T / 1000)} s`;
+    $("prMargen").textContent = `${fmt(datos.margen)} s`;
+    dibujarOnda(datos.g, tramos, $("prSvg"), $("prLetras"), true);
+    $("prLetra").textContent = ""; $("prPatron").innerHTML = ""; $("prLetraNota").textContent = "Listo para transmitir";
+    $("prCabezal").classList.remove("activo");
+  }
+  function estadoProy(texto, clase = "") { const e = $("prEstado"); e.textContent = texto; e.className = "pr-estado " + clase; }
+  async function abrirProyeccion() {
+    pintarProyeccion(enCurso || actual);
+    proy.hidden = false; document.body.style.overflow = "hidden";
+    try { if (proy.requestFullscreen && !document.fullscreenElement) await proy.requestFullscreen({ navigationUI: "hide" }); } catch (e) {}
+    actualizarBotones();
+  }
+  async function cerrarProyeccion() {
+    proy.hidden = true; document.body.style.overflow = "";
+    try { if (document.fullscreenElement) await document.exitFullscreen(); } catch (e) {}
+  }
+  $("btnPantalla").addEventListener("click", abrirProyeccion);
+  $("prSalir").addEventListener("click", cerrarProyeccion);
+  $("prTx").addEventListener("click", () => enviar("transmitir"));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !proy.hidden) cerrarProyeccion(); });
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && !proy.hidden && proy.dataset.cerrarConFs === "1") cerrarProyeccion(); });
 
   function puedeTransmitir() { return !!(actual && cliente && cliente.connected && codigoCtl && estadoFlash && estadoFlash.listo && !estadoFlash.ocupado && !enCurso && Date.now() - ultimoHola < 12000); }
   function actualizarBotones() {
     $("btnTx").disabled = !puedeTransmitir();
     $("btnProbar").disabled = !puedeTransmitir();
     $("btnCancelar").hidden = !enCurso;
+    const prTx = document.getElementById("prTx");
+    if (prTx) { prTx.disabled = !puedeTransmitir(); prTx.textContent = enCurso ? "Transmitiendo…" : "Transmitir con flash"; }
   }
 
   function render() {
@@ -646,7 +772,8 @@ if (!window.mqtt) document.write('<script src="https://unpkg.com/mqtt@5.10.1/dis
     $("ondaFrase").textContent = frase || "Sin mensaje";
     $("ondaDatos").textContent = g.length && T >= 80 ? `${g.length} T, ${fmt(g.length * T / 1000)} s` : "";
     dibujarOnda(g, tramos);
-    actual = error ? null : { frase, g, T, margen };
+    actual = error ? null : { frase, g, T, margen, tramos };
+    if (!enCurso && !proy.hidden) pintarProyeccion(actual);
     store.set("mf_texto", inTexto.value); store.set("mf_T", inT.value); store.set("mf_margen", inMargen.value);
     actualizarBotones();
   }
@@ -656,6 +783,7 @@ if (!window.mqtt) document.write('<script src="https://unpkg.com/mqtt@5.10.1/dis
 
   function lampara(on) {
     $("lampara").classList.toggle("on", on);
+    $("prLampara").classList.toggle("on", on);
     $("monTitulo").textContent = on ? "Flash encendido" : "Flash apagado";
   }
 
@@ -683,12 +811,29 @@ if (!window.mqtt) document.write('<script src="https://unpkg.com/mqtt@5.10.1/dis
   function animar(n, T, margenMs) {
     const t0 = performance.now() + margenMs, total = n * T;
     const cab = $("cabezal"); cab.classList.add("activo");
+    const prCab = $("prCabezal"); prCab.classList.add("activo");
+    const tramos = (proyDatos && proyDatos.tramos) || [];
+    let letraActual = -2;
     const paso = (now) => {
-      if (!enCurso) { cab.classList.remove("activo"); return; }
+      if (!enCurso) { cab.classList.remove("activo"); prCab.classList.remove("activo"); return; }
       const f = Math.min(Math.max((now - t0) / total, 0), 1);
       cab.style.left = `calc(${(f * 100).toFixed(3)}% - 1px)`;
+      prCab.style.left = `calc(${(f * 100).toFixed(3)}% - 1.5px)`;
+      const rect = document.getElementById("prAvanceRect"); if (rect) rect.setAttribute("width", (f * n * 10).toFixed(2));
       const restante = Math.max(0, (t0 + total - now) / 1000);
       $("monDetalle").textContent = now < t0 ? `Comienza en ${fmt((t0 - now) / 1000)} s.` : f < 1 ? `Quedan ${fmt(restante)} s del mensaje.` : "Mensaje enviado, esperando cierre.";
+      // pantalla completa: tiempo, estado y letra en curso
+      $("prTiempo").textContent = now < t0 ? `Comienza en ${fmt((t0 - now) / 1000)} s` : `${fmt(Math.min(now - t0, total) / 1000)} de ${fmt(total / 1000)} s`;
+      if (now < t0) estadoProy("Flash apagado, por comenzar", "vivo");
+      else if (f < 1) estadoProy("Transmitiendo", "vivo");
+      const k = Math.floor(f * n);
+      let i = now < t0 || f >= 1 ? -1 : tramos.findIndex(t => k >= t.k0 && k < t.k1 + 3);
+      if (i !== letraActual) {
+        letraActual = i;
+        document.querySelectorAll("#prLetras span").forEach(sp => sp.classList.toggle("activa", Number(sp.dataset.i) === i));
+        if (i >= 0) { $("prLetra").textContent = tramos[i].letra; $("prPatron").innerHTML = marcas(tramos[i].letra); $("prLetraNota").textContent = `Letra ${i + 1} de ${tramos.length}`; }
+        else if (now >= t0 && f < 1) { $("prLetra").textContent = "␣"; $("prPatron").innerHTML = ""; $("prLetraNota").textContent = "Espacio entre palabras"; }
+      }
       animacion = requestAnimationFrame(paso);
     };
     animacion = requestAnimationFrame(paso);
@@ -700,12 +845,14 @@ if (!window.mqtt) document.write('<script src="https://unpkg.com/mqtt@5.10.1/dis
     const prueba = tipo === "probar";
     enCurso = { id, prueba, frase: prueba ? "EEEEE" : actual.frase, T: prueba ? 300 : actual.T, margen: prueba ? 0.5 : actual.margen,
       g: prueba ? [1,0,1,0,1,0,1,0,1] : actual.g, inicio: new Date() };
+    pintarProyeccion(enCurso);
+    estadoProy("Esperando confirmación del flash"); $("prTiempo").textContent = "–"; $("prLat").textContent = "–";
     if (prueba) publicar(BASE + codigoCtl + "/cmd", { tipo: "probar", id });
     else publicar(BASE + codigoCtl + "/cmd", { tipo: "transmitir", id, frase: actual.frase, T: actual.T, margen: actual.margen });
     $("monDetalle").textContent = "Orden enviada. Esperando confirmación del flash…";
     actualizarBotones();
     clearTimeout(vigilante);
-    vigilante = setTimeout(() => { if (enCurso && !enCurso.confirmado) { enCurso = null; $("monDetalle").textContent = "El flash no confirmó la orden. Revisa la conexión e intenta de nuevo."; actualizarBotones(); } }, 6000);
+    vigilante = setTimeout(() => { if (enCurso && !enCurso.confirmado) { enCurso = null; $("monDetalle").textContent = "El flash no confirmó la orden. Revisa la conexión e intenta de nuevo."; estadoProy("El flash no respondió"); actualizarBotones(); } }, 6000);
   }
   $("btnTx").addEventListener("click", () => enviar("transmitir"));
   $("btnProbar").addEventListener("click", () => enviar("probar"));
@@ -724,8 +871,13 @@ if (!window.mqtt) document.write('<script src="https://unpkg.com/mqtt@5.10.1/dis
         if (m.tipo === "recibido") { enCurso.confirmado = true; clearTimeout(vigilante); animar(m.n, m.T, m.margen * 1000); }
         else if (m.tipo === "pulso") lampara(!!m.on);
         else if (m.tipo === "fin") {
-          lampara(false); cancelAnimationFrame(animacion); $("cabezal").classList.remove("activo");
+          lampara(false); cancelAnimationFrame(animacion); $("cabezal").classList.remove("activo"); $("prCabezal").classList.remove("activo");
           const lat = m.lat || { media: 0, max: 0, n: 0 };
+          estadoProy(m.estado === "completa" ? "Terminado" : `Transmisión ${m.estado}`, m.estado === "completa" ? "fin" : "");
+          $("prLat").textContent = m.simulado ? "Simulado" : `${fmt(lat.media)} ms (máx. ${fmt(lat.max)} ms)`;
+          const rect = document.getElementById("prAvanceRect"); if (rect && m.estado === "completa") rect.setAttribute("width", "100000");
+          document.querySelectorAll("#prLetras span").forEach(sp => sp.classList.remove("activa"));
+          $("prLetra").textContent = ""; $("prPatron").innerHTML = ""; $("prLetraNota").textContent = m.estado === "completa" ? "Mensaje completo" : "Transmisión detenida";
           $("monDetalle").textContent = m.estado !== "completa" ? `Transmisión ${m.estado}.`
             : m.simulado ? "Terminado (modo simulado con la pantalla)."
             : `Terminado. Latencia del flash: media ${fmt(lat.media)} ms, máxima ${fmt(lat.max)} ms.`;
