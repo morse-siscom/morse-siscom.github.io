@@ -272,7 +272,7 @@ footer.pie .wrap { padding-block: 22px 30px; display: flex; flex-wrap: wrap; jus
     <textarea id="respaldo" hidden readonly style="width:100%;height:140px;font-family:var(--mono);font-size:12px"></textarea>
     <details>
       <summary>Comandos para el receptor en Python</summary>
-      <p class="nota" style="margin-top:8px">Usa el mismo T en la calibración y en los cuatro videos. Con T = <span id="tPy">200</span> ms:</p>
+      <p class="nota" style="margin-top:8px">Programa: <a href="https://github.com/morse-siscom/morse-siscom.github.io/tree/main/python">receptor.py</a> (también hay una versión en la página del <a href="receptor/">receptor</a> y en <a href="https://colab.research.google.com/github/morse-siscom/morse-siscom.github.io/blob/main/Receptor_Morse.ipynb">Google Colab</a>). La calibración con PARIS PARIS a 0,5 m entrega el umbral y T (aquí, T = <span id="tPy">200</span> ms); después se usan iguales en todos los videos:</p>
       <pre class="cmd"><code id="cmdPy"></code></pre>
     </details>
   </section>
@@ -393,10 +393,12 @@ footer.pie .wrap { padding-block: 22px 30px; display: flex; flex-wrap: wrap; jus
       `<td class="n">${k === 1 ? "" : k}T${Tok ? ` = ${k * T} ms` : ""}</td></tr>`).join("");
 
     $("tPy").textContent = Tok ? T : "?";
-    const Ts = Tok ? String(T / 1000) : "0.2";
     $("cmdPy").textContent =
-      `python calibrar.py videos/calibracion_0p5m.mp4 --roi-auto 20 --T ${Ts}\n` +
-      `python receptor.py videos/sis_com_0p5m.mp4 --calib calib.json --carpeta resultados/0p5m --referencia "SIS COM"`;
+      `pip install opencv-python numpy matplotlib\n` +
+      `python receptor.py calibrar paris_paris_0p5m.mp4\n` +
+      `python receptor.py decodificar sis_com_1m.mp4 --ref "SIS COM"\n` +
+      `python receptor.py espectro sis_com_0p5m.mp4\n` +
+      `# flash: agrega --roi 3 3 --escala 4 al calibrar`;
 
     actual = error ? null : { frase, g, T, margen };
     store.set("ms_texto", inTexto.value); store.set("ms_T", inT.value); store.set("ms_margen", inMargen.value);
