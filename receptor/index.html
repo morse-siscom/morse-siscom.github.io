@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="author" content="Julian Alfaro, Matías Vargas">
+<meta name="description" content="Receptor: sube el video grabado y la página calcula la intensidad de la ROI, reconstruye el texto Morse y la CER. Tarea 1 de Sistemas de Comunicaciones 2026, Universidad de Concepción.">
+<meta name="theme-color" content="#0f2d52">
+<!--
+  Transmisor Morse SisCom, receptor por video
+  Tarea 1, Sistemas de Comunicaciones 2026, Universidad de Concepción
+  Profesor: Dr. Fernando Castillo Rivera
+  Integrantes: Julian Alfaro y Matías Vargas
+  Mismo algoritmo que receptor.py: ROI, I[n], umbral de Otsu, T de PARIS PARIS,
+  duraciones por marca de tiempo y reglas de 2T, 5T y 6T.
+-->
+<title>Receptor · Transmisor Morse SisCom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --paper: #f4f6f9; --surface: #ffffff; --ink: #13202f; --muted: #5a6b7f; --line: #dbe2ea;
+  --navy: #0f2d52; --navy-deep: #0a2140; --on-navy: #f3f6fb; --on-navy-muted: #a9bbd2;
+  --gold: #f0a500; --gold-soft: #fdf1d6; --gold-ink: #7a5000; --accent-ink: #0f2d52;
+  --danger: #b42318; --ok: #1f7a4d; --plot-line: #0f2d52; --plot-grid: #e4e9f0;
+  --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0b1624; --surface: #12223a; --ink: #e8eef5; --muted: #95a6ba; --line: #23364e;
+  --navy: #0d2a4c; --navy-deep: #081a31; --gold-soft: #3a2c0c; --gold-ink: #f5b82e; --accent-ink: #9cc2ec;
+  --danger: #ff8a80; --ok: #7fd3a4; --plot-line: #9cc2ec; --plot-grid: #23364e; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #0b1624; --surface: #12223a; --ink: #e8eef5; --muted: #95a6ba; --line: #23364e;
+  --navy: #0d2a4c; --navy-deep: #081a31; --gold-soft: #3a2c0c; --gold-ink: #f5b82e; --accent-ink: #9cc2ec;
+  --danger: #ff8a80; --ok: #7fd3a4; --plot-line: #9cc2ec; --plot-grid: #23364e; color-scheme: dark }
+
+* { box-sizing: border-box }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.55; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; }
+.banda { background: var(--navy); color: var(--on-navy); }
+.banda .wrap { padding-block: 20px 28px; display: grid; gap: 24px; }
+.ficha-top { display: flex; flex-wrap: wrap; gap: 20px 32px; align-items: center; justify-content: space-between; }
+.logos { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.logo { background: #ffffff; border-radius: 10px; padding: 7px 11px; display: inline-flex; }
+.logo img { height: 44px; width: auto; display: block; }
+.creditos { display: grid; grid-template-columns: auto auto auto; gap: 4px 28px; margin: 0; font-size: 0.92rem; }
+.creditos dt { color: var(--on-navy-muted); font-size: 0.8rem; }
+.creditos dd { margin: 0; font-weight: 600; }
+h1 { margin: 0; font-stretch: 125%; font-weight: 750; font-size: clamp(2.1rem, 6vw, 3.6rem); line-height: 1.02; letter-spacing: -0.01em; }
+.bajada { margin: 10px 0 0; color: var(--on-navy-muted); max-width: 64ch; font-size: 1.05rem; }
+.bajada a { color: var(--gold); }
+main.wrap { padding-block: 28px 56px; display: grid; gap: 20px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px; display: grid; gap: 14px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 1.2rem; font-weight: 700; font-stretch: 112%; display: flex; align-items: center; gap: 10px; }
+.paso { width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: #fff; font-size: 0.85rem; display: inline-grid; place-items: center; flex: none; }
+.panel p { margin: 0 }
+.nota { color: var(--muted); font-size: 0.92rem; }
+.err { color: var(--danger); font-size: 0.95rem; margin: 0; }
+label { font-weight: 600; font-size: 0.95rem; }
+.campo { display: grid; gap: 6px; min-width: 0; }
+input[type=text], input[type=number] { width: 100%; font: inherit; font-size: 1.1rem; padding: 10px 12px; border-radius: 10px;
+  border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); }
+input[type=text] { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; }
+input:focus-visible { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+button:focus-visible, .archivo:focus-within { outline: 3px solid var(--gold); outline-offset: 2px }
+button { font: inherit; cursor: pointer; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); padding: 8px 13px; }
+button:hover { border-color: var(--muted) }
+button:disabled { opacity: 0.45; cursor: not-allowed }
+button.chip { font-size: 0.92rem; padding: 6px 12px; border-radius: 999px; }
+button.chip[aria-pressed="true"] { border-color: var(--gold); background: var(--gold-soft); color: var(--gold-ink); font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.archivo { position: relative; display: grid; place-items: center; text-align: center; gap: 4px; border: 2px dashed var(--line); border-radius: 12px; padding: 22px 14px; cursor: pointer; background: var(--paper); }
+.archivo:hover { border-color: var(--gold) }
+.archivo b { font-size: 1.1rem; font-stretch: 112%; }
+.archivo input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.cifra { background: var(--paper); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.cifra b { display: block; font-size: 1.35rem; font-stretch: 112%; font-variant-numeric: tabular-nums; line-height: 1.2; overflow-wrap: anywhere; }
+.cifra small { color: var(--muted); font-size: 0.82rem; }
+.texto { font-family: var(--mono); font-size: clamp(1.6rem, 6vw, 2.4rem); letter-spacing: 0.12em; font-weight: 500; background: var(--navy-deep); color: #fff; border-radius: 12px; padding: 14px 18px; overflow-wrap: anywhere; }
+.texto small { display: block; font-family: var(--font); letter-spacing: 0; font-size: 0.85rem; color: var(--on-navy-muted); }
+.progreso { height: 8px; background: var(--paper); border-radius: 99px; overflow: hidden; }
+.progreso i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .15s; }
+.grafico { width: 100%; height: 260px; display: block; }
+.grafico.bajo { height: 200px; }
+.vista { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.vista canvas.cuadro { width: 100%; height: auto; border-radius: 10px; background: #000; cursor: crosshair; display: block; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 500; }
+td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.tabla { overflow-x: auto; }
+details { border-top: 1px solid var(--line); padding-top: 12px; }
+summary { cursor: pointer; font-weight: 600; }
+.ok { color: var(--ok); font-weight: 600 } .bad { color: var(--danger); font-weight: 600 }
+footer.pie { border-top: 1px solid var(--line); }
+footer.pie .wrap { padding-block: 22px 30px; color: var(--muted); font-size: 0.9rem; display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+@media (max-width: 720px) {
+  .creditos { grid-template-columns: 1fr; }
+  .vista { grid-template-columns: 1fr; }
+  .vista canvas.cuadro { max-width: 240px; }
+  .panel { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<header class="banda">
+  <div class="wrap">
+    <div class="ficha-top">
+      <div class="logos">
+        <span class="logo"><img src="../logos/udec.png" alt="Universidad de Concepción"></span>
+        <span class="logo"><img src="../logos/fi.png" alt="Facultad de Ingeniería, Universidad de Concepción"></span>
+      </div>
+      <dl class="creditos">
+        <div><dt>Asignatura</dt><dd>Sistemas de Comunicaciones 2026, Tarea 1</dd></div>
+        <div><dt>Profesor</dt><dd>Dr. Fernando Castillo Rivera</dd></div>
+        <div><dt>Integrantes</dt><dd>Julian Alfaro y Matías Vargas</dd></div>
+      </dl>
+    </div>
+    <div>
+      <h1>Receptor</h1>
+      <p class="bajada">Sube el video que grabó la cámara. La página calcula la intensidad media de la ROI en cada cuadro, I[n], y reconstruye el texto con el mismo algoritmo del programa en Python. El video no sale de tu dispositivo. <a href="../">Transmisor por pantalla</a> · <a href="../flash/">Modo flash</a></p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- ============ 1. CALIBRACIÓN ============ -->
+  <section class="panel" id="secCal">
+    <h2><span class="paso">1</span>Calibrar con PARIS PARIS a 0,5 m</h2>
+    <p class="nota">Se hace una vez. De este video salen el umbral (criterio de Otsu) y T (duración del mensaje dividida por 93). Después se usan iguales en todas las distancias.</p>
+    <div class="campo">
+      <label>Fuente de luz</label>
+      <div class="chips" role="group" aria-label="Fuente de luz">
+        <button class="chip" data-fuente="pantalla" aria-pressed="true">Pantalla (ROI 24 × 12)</button>
+        <button class="chip" data-fuente="flash" aria-pressed="false">Flash (ROI 3 × 3)</button>
+      </div>
+    </div>
+    <label class="archivo"><input type="file" accept="video/*" id="archCal"><b>Elegir video de calibración</b><span class="nota">PARIS PARIS a 0,5 m</span></label>
+    <div class="fila">
+      <div class="campo"><label for="inUmbral">Umbral I<sub>u</sub></label><input type="number" id="inUmbral" step="0.1" inputmode="decimal"></div>
+      <div class="campo"><label for="inT">T [ms]</label><input type="number" id="inT" step="0.1" inputmode="decimal"></div>
+    </div>
+    <p class="nota" id="calEstado">Sin calibración. También puedes escribir el umbral y T a mano.</p>
+  </section>
+
+  <!-- ============ 2. DECODIFICAR ============ -->
+  <section class="panel" id="secDec">
+    <h2><span class="paso">2</span>Decodificar un video</h2>
+    <div class="campo">
+      <label for="inFrase">Frase transmitida (solo para calcular la CER)</label>
+      <input type="text" id="inFrase" value="SIS COM" autocomplete="off" spellcheck="false">
+    </div>
+    <label class="archivo"><input type="file" accept="video/*" id="archDec"><b>Elegir video a decodificar</b><span class="nota">SIS COM a cualquier distancia, o la palabra nueva</span></label>
+  </section>
+
+  <!-- ============ PROGRESO ============ -->
+  <section class="panel" id="secProg" hidden>
+    <h2 id="progTitulo">Leyendo el video…</h2>
+    <div class="progreso"><i id="progBarra"></i></div>
+    <p class="nota" id="progTexto">El video se reproduce una vez, en silencio, para leer cada cuadro.</p>
+  </section>
+
+  <p class="err" id="error" hidden></p>
+
+  <!-- ============ RESULTADOS ============ -->
+  <section class="panel" id="secRes" hidden>
+    <h2 id="resTitulo">Resultado</h2>
+    <div class="texto" id="resTexto">…</div>
+    <div class="cifras" id="resCifras"></div>
+    <div class="vista">
+      <div>
+        <canvas class="cuadro" id="cvCuadro" aria-label="Cuadro del video con la ROI marcada"></canvas>
+        <p class="nota" style="margin-top:6px">Rectángulo amarillo: ROI. Toca la imagen para moverla a mano.</p>
+      </div>
+      <div class="campo">
+        <label>Intensidad media de la ROI, I[n]</label>
+        <canvas class="grafico" id="cvSenal" role="img" aria-label="Gráfico de I[n] en función del tiempo con el umbral"></canvas>
+      </div>
+    </div>
+    <details>
+      <summary>Decisiones por racha</summary>
+      <div class="tabla"><table><thead><tr><th>#</th><th>Nivel</th><th>Inicio [s]</th><th>Duración [s]</th><th>Duración [T]</th><th>Decisión</th></tr></thead><tbody id="tbRachas"></tbody></table></div>
+    </details>
+    <details>
+      <summary>Espectro de amplitud, PSD y B<sub>95</sub></summary>
+      <div class="campo" style="margin-top:10px">
+        <canvas class="grafico bajo" id="cvAmp" role="img" aria-label="Espectro de amplitud"></canvas>
+        <canvas class="grafico bajo" id="cvPsd" role="img" aria-label="Densidad espectral de potencia con B95"></canvas>
+        <p class="nota" id="espNota"></p>
+      </div>
+    </details>
+    <div class="chips"><button id="btnCsv">Descargar I[n] (CSV)</button><button id="btnPng">Descargar gráfico (PNG)</button></div>
+  </section>
+
+  <section class="panel">
+    <h2>Cómo funciona</h2>
+    <ol style="margin:0;padding-left:1.2em;display:grid;gap:6px">
+      <li>Cada cuadro se pasa a gris y se reduce a 270 píxeles en su lado corto.</li>
+      <li>La ROI se centra donde el brillo más varía a lo largo del video, que es la fuente que se prende y se apaga.</li>
+      <li>I[n] es el promedio de los píxeles de la ROI en cada cuadro; t[n] es la hora del cuadro.</li>
+      <li>b[n] = 1 si I[n] supera el umbral. Los cuadros seguidos con el mismo valor forman una racha, y su duración se mide con la hora de los cuadros.</li>
+      <li>Encendida: menos de 2T es punto, de 2T a 6T es raya. Apagada: desde 2T termina la letra y desde 5T termina la palabra.</li>
+      <li>El patrón se busca en la tabla Morse («?» si no existe) y el texto se compara con la frase mediante la distancia de Levenshtein.</li>
+    </ol>
+    <p class="nota">Si el navegador no puede abrir el video (algunos videos HEVC o MOV), graba en formato H.264: en la cámara del celular, desactiva «video de alta eficiencia» o «HEVC».</p>
+  </section>
+</main>
+
+<footer class="pie"><div class="wrap"><span>Transmisor Morse SisCom · Receptor</span><span>Tarea 1, Sistemas de Comunicaciones 2026, Universidad de Concepción</span></div></footer>
+
+<script>
+"use strict";
+// ======================================================================
+// Utilidades
+// ======================================================================
+const $ = (id) => document.getElementById(id);
+const MORSE = {".-":"A","-...":"B","-.-.":"C","-..":"D",".":"E","..-.":"F","--.":"G","....":"H","..":"I",".---":"J",
+  "-.-":"K",".-..":"L","--":"M","-.":"N","---":"O",".--.":"P","--.-":"Q",".-.":"R","...":"S","-":"T","..-":"U",
+  "...-":"V",".--":"W","-..-":"X","-.--":"Y","--..":"Z"};
+const LADO_CORTO = 270;
+const ROI_TAM = { pantalla: [24, 12], flash: [3, 3] };
+const fmt = (x, d = 2) => Number(x).toFixed(d).replace(".", ",");
+const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const leer = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+
+let fuente = (leer("rx_fuente") || "pantalla");
+let actual = null;      // último video procesado (decodificación)
+
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function mostrarError(msg) { const e = $("error"); e.textContent = msg; e.hidden = !msg; }
+
+// ======================================================================
+// Tramo 1. Del video a los cuadros reducidos y t[n]
+// ======================================================================
+async function leerVideo(file, alProgreso, velocidad = 1) {
+  const video = document.createElement("video");
+  video.muted = true; video.playsInline = true; video.preload = "auto";
+  video.src = URL.createObjectURL(file);
+  await new Promise((ok, mal) => {
+    video.onloadedmetadata = ok;
+    video.onerror = () => mal(new Error("El navegador no pudo abrir este video. Prueba con un video H.264 (desactiva HEVC o «alta eficiencia» en la cámara)."));
+  });
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh) throw new Error("El video no tiene imagen legible en este navegador.");
+  const k = LADO_CORTO / Math.min(vw, vh);
+  const w = Math.round(vw * k), h = Math.round(vh * k);
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  const ctx = cv.getContext("2d", { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+  const cuadros = [], tiempos = [];
+  const dur = video.duration;
+
+  function capturar(tiempo) {
+    ctx.drawImage(video, 0, 0, w, h);
+    const d = ctx.getImageData(0, 0, w, h).data;
+    const g = new Uint8Array(w * h);
+    for (let i = 0, j = 0; j < g.length; i += 4, j++) g[j] = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2] + 0.5) | 0;
+    cuadros.push(g); tiempos.push(tiempo);
+    if (alProgreso && isFinite(dur)) alProgreso(Math.min(1, tiempo / dur));
+  }
+
+  if ("requestVideoFrameCallback" in HTMLVideoElement.prototype) {
+    // Se reproduce el video y se lee cada cuadro presentado, con su hora (mediaTime)
+    let perdidos = 0, ultimo = null;
+    await new Promise((ok, mal) => {
+      const cb = (_, meta) => {
+        if (ultimo !== null && meta.presentedFrames - ultimo > 1) perdidos += meta.presentedFrames - ultimo - 1;
+        ultimo = meta.presentedFrames;
+        capturar(meta.mediaTime);
+        if (!video.ended) video.requestVideoFrameCallback(cb);
+      };
+      video.requestVideoFrameCallback(cb);
+      video.onended = ok;
+      video.playbackRate = velocidad;
+      video.play().catch(mal);
+    });
+    URL.revokeObjectURL(video.src);
+    return { cuadros, t: Float64Array.from(tiempos), w, h, vw, vh, perdidos, file };
+  }
+  // Respaldo: se recorre el video saltando cuadro a cuadro a 30 fps
+  const paso = 1 / 30;
+  for (let tt = 0; tt < dur; tt += paso) {
+    video.currentTime = tt;
+    await new Promise((ok) => (video.onseeked = ok));
+    capturar(video.currentTime);
+  }
+  URL.revokeObjectURL(video.src);
+  return { cuadros, t: Float64Array.from(tiempos), w, h, vw, vh, perdidos: 0, file };
+}
+
+// La ROI se centra donde el brillo más varía (desviación estándar en el tiempo)
+function ubicarROI(v, ancho, alto, centro) {
+  const { cuadros, w, h } = v;
+  let cx, cy;
+  if (centro) { [cx, cy] = centro; }
+  else {
+    const n = cuadros.length, N = w * h;
+    const s = new Float64Array(N), s2 = new Float64Array(N);
+    for (const c of cuadros) for (let i = 0; i < N; i++) { const x = c[i]; s[i] += x; s2[i] += x * x; }
+    const sd = new Float32Array(N);
+    for (let i = 0; i < N; i++) { const m = s[i] / n; sd[i] = Math.sqrt(Math.max(0, s2[i] / n - m * m)); }
+    // suavizado de 5 × 5 para no elegir un píxel aislado
+    const sm = new Float32Array(N); let max = 0;
+    for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) {
+      let acc = 0;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) acc += sd[(y + dy) * w + x + dx];
+      sm[y * w + x] = acc; if (acc > max) max = acc;
+    }
+    // candidatos: zonas con mucha variación. Se elige la que se comporta más como
+    // una señal de dos niveles (prendido/apagado); así una persona que se mueve
+    // por la escena no se confunde con la fuente.
+    const cand = [];
+    for (let y = 2; y < h - 2; y += 3) for (let x = 2; x < w - 2; x += 3) if (sm[y * w + x] >= 0.35 * max) cand.push([sm[y * w + x], x, y]);
+    cand.sort((a, b) => b[0] - a[0]);
+    let mejor = -1; cx = cand.length ? cand[0][1] : 0; cy = cand.length ? cand[0][2] : 0;
+    for (const [, x, y] of cand.slice(0, 60)) {
+      const r = [Math.max(0, Math.min(w - ancho, x - (ancho >> 1))), Math.max(0, Math.min(h - alto, y - (alto >> 1))), ancho, alto];
+      const q = binariedad(intensidad(v, r)) * Math.sqrt(sm[y * w + x] / max);
+      if (q > mejor) { mejor = q; cx = x; cy = y; }
+    }
+  }
+  const x0 = Math.max(0, Math.min(w - ancho, Math.round(cx - Math.floor(ancho / 2))));
+  const y0 = Math.max(0, Math.min(h - alto, Math.round(cy - Math.floor(alto / 2))));
+  return [x0, y0, ancho, alto];
+}
+
+// Qué tan "de dos niveles" es una señal: varianza entre grupos / varianza total,
+// con el umbral de Otsu (1 = dos niveles perfectos)
+function binariedad(I) {
+  const u = umbralOtsu(I); let n0 = 0, n1 = 0, s0 = 0, s1 = 0, s = 0, s2 = 0;
+  for (const x of I) { s += x; s2 += x * x; if (x > u) { n1++; s1 += x; } else { n0++; s0 += x; } }
+  const n = I.length, vt = s2 / n - (s / n) ** 2;
+  if (!n0 || !n1 || vt <= 0) return 0;
+  const m0 = s0 / n0, m1 = s1 / n1;
+  // además se exigen varios cambios de estado: un mensaje Morse tiene muchos pulsos,
+  // mientras que algo que aparece o desaparece de la escena cambia una o dos veces
+  let cambios = 0;
+  for (let i = 1; i < n; i++) if ((I[i] > u) !== (I[i - 1] > u)) cambios++;
+  return (n0 / n) * (n1 / n) * (m1 - m0) ** 2 / vt * Math.min(1, cambios / 10);
+}
+
+// I[n] = promedio de los niveles de gris de la ROI
+function intensidad(v, roi) {
+  const [x0, y0, rw, rh] = roi, { w } = v;
+  return Float64Array.from(v.cuadros, (c) => {
+    let s = 0;
+    for (let y = y0; y < y0 + rh; y++) for (let x = x0; x < x0 + rw; x++) s += c[y * w + x];
+    return s / (rw * rh);
+  });
+}
+
+// ======================================================================
+// Tramo 2. Umbral de Otsu
+// ======================================================================
+function umbralOtsu(I) {
+  const hist = new Float64Array(256);
+  for (const x of I) hist[Math.min(255, Math.max(0, Math.floor(x)))]++;
+  const n = I.length;
+  let w0 = 0, mu = 0, muT = 0;
+  for (let k = 0; k < 256; k++) muT += k * hist[k] / n;
+  const sep = new Float64Array(256);
+  for (let k = 0; k < 256; k++) {
+    const p = hist[k] / n; w0 += p; mu += k * p;
+    sep[k] = (muT * w0 - mu) ** 2 / (w0 * (1 - w0) + 1e-12);
+  }
+  const max = Math.max(...sep);
+  let lo = -1, hi = -1;
+  for (let k = 0; k < 256; k++) if (sep[k] >= max * (1 - 1e-6)) { if (lo < 0) lo = k; hi = k; }
+  return (lo + hi) / 2 + 0.5;
+}
+
+// ======================================================================
+// Tramo 3. Decisión binaria y rachas (duración por marca de tiempo)
+// ======================================================================
+function rachas(I, t, Iu) {
+  const b = Array.from(I, (x) => (x > Iu ? 1 : 0));
+  const R = [];
+  let ini = 0;
+  for (let n = 1; n <= b.length; n++) {
+    if (n === b.length || b[n] !== b[ini]) {
+      const fin = n < t.length ? t[n] : t[t.length - 1];
+      R.push({ nivel: b[ini], ini: t[ini], dur: fin - t[ini] });
+      ini = n;
+    }
+  }
+  return R.slice(1, -1);   // márgenes apagados
+}
+
+// ======================================================================
+// Tramo 4. Clasificación y traducción
+// ======================================================================
+function aTexto(R, T) {
+  let texto = "", letra = "";
+  for (const r of R) {
+    const x = r.dur / T;
+    if (r.nivel === 1) {
+      const s = x < 2 ? "." : (x < 6 ? "-" : "#");
+      letra += s; r.decision = s === "." ? "punto" : (s === "-" ? "raya" : "inválido");
+    } else {
+      r.decision = x < 2 ? "entre símbolos" : (x < 5 ? "entre letras" : "entre palabras");
+      if (x >= 2) { texto += MORSE[letra] || "?"; letra = ""; }
+      if (x >= 5) texto += " ";
+    }
+  }
+  return texto + (MORSE[letra] || "?");
+}
+
+// ======================================================================
+// Tramo 5. Levenshtein (Wagner-Fischer) y CER
+// ======================================================================
+function cer(ref, rec) {
+  ref = ref.toUpperCase(); rec = rec.toUpperCase();
+  const n = ref.length, m = rec.length;
+  const dp = Array.from({ length: n + 1 }, (_, i) => Array.from({ length: m + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
+  for (let i = 1; i <= n; i++) for (let j = 1; j <= m; j++)
+    dp[i][j] = Math.min(dp[i - 1][j - 1] + (ref[i - 1] !== rec[j - 1] ? 1 : 0), dp[i - 1][j] + 1, dp[i][j - 1] + 1);
+  let S = 0, D = 0, In = 0, i = n, j = m;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] + (ref[i - 1] !== rec[j - 1] ? 1 : 0)) { S += ref[i - 1] !== rec[j - 1] ? 1 : 0; i--; j--; }
+    else if (i > 0 && dp[i][j] === dp[i - 1][j] + 1) { D++; i--; }
+    else { In++; j--; }
+  }
+  return { S, D, I: In, CER: n ? (S + D + In) / n : 0 };
+}
+
+// ======================================================================
+// Tramo 6. Espectro, PSD (periodograma) y B95
+// ======================================================================
+function espectro(I, fs) {
+  const N = I.length, media = I.reduce((a, b) => a + b, 0) / N;
+  const x = Array.from(I, (v) => v - media);
+  const K = Math.floor(N / 2) + 1, f = [], A = [], P = [];
+  for (let k = 0; k < K; k++) {
+    let re = 0, im = 0;
+    for (let n = 0; n < N; n++) { const a = -2 * Math.PI * k * n / N; re += x[n] * Math.cos(a); im += x[n] * Math.sin(a); }
+    const mag2 = re * re + im * im;
+    f.push(k * fs / N); A.push(2 * Math.sqrt(mag2) / N); P.push(k === 0 ? 0 : 2 * mag2 / (fs * N));
+  }
+  const area = [0];
+  for (let k = 1; k < K; k++) area.push(area[k - 1] + (P[k] + P[k - 1]) / 2 * (f[k] - f[k - 1]));
+  const obj = 0.95 * area[K - 1];
+  let k = area.findIndex((a) => a >= obj);
+  const B95 = k <= 0 ? f[0] : f[k - 1] + (obj - area[k - 1]) / (area[k] - area[k - 1]) * (f[k] - f[k - 1]);
+  let pico = 0, ap = -1;
+  for (let i = 0; i < K; i++) if (f[i] > 1 && A[i] > ap) { ap = A[i]; pico = f[i]; }
+  return { f, A, P, B95, pico };
+}
+
+// ======================================================================
+// Gráficos en canvas
+// ======================================================================
+function prepararCanvas(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.max(300, r.width) * dpr; cv.height = Math.max(160, r.height) * dpr;
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, W: cv.width / dpr, H: cv.height / dpr };
+}
+function ejes(ctx, W, H, xr, yr, xl, yl) {
+  const m = { l: 46, r: 10, t: 12, b: 34 };
+  const X = (v) => m.l + (v - xr[0]) / (xr[1] - xr[0]) * (W - m.l - m.r);
+  const Y = (v) => H - m.b - (v - yr[0]) / (yr[1] - yr[0]) * (H - m.t - m.b);
+  ctx.font = "12px " + css("--font"); ctx.fillStyle = css("--muted"); ctx.strokeStyle = css("--plot-grid"); ctx.lineWidth = 1;
+  const marcas = (a, b, n) => { const paso = Math.pow(10, Math.floor(Math.log10((b - a) / n))); const ps = [1, 2, 5, 10].map((q) => q * paso).find((p) => (b - a) / p <= n) || paso * 10; const r = []; for (let v = Math.ceil(a / ps) * ps; v <= b + 1e-9; v += ps) r.push(+v.toFixed(6)); return r; };
+  for (const v of marcas(yr[0], yr[1], 5)) { ctx.beginPath(); ctx.moveTo(m.l, Y(v)); ctx.lineTo(W - m.r, Y(v)); ctx.stroke(); ctx.textAlign = "right"; ctx.fillText(String(v).replace(".", ","), m.l - 6, Y(v) + 4); }
+  for (const v of marcas(xr[0], xr[1], 8)) { ctx.beginPath(); ctx.moveTo(X(v), m.t); ctx.lineTo(X(v), H - m.b); ctx.stroke(); ctx.textAlign = "center"; ctx.fillText(String(v).replace(".", ","), X(v), H - m.b + 15); }
+  ctx.textAlign = "center"; ctx.fillText(xl, (m.l + W - m.r) / 2, H - 4);
+  ctx.save(); ctx.translate(11, (m.t + H - m.b) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(yl, 0, 0); ctx.restore();
+  return { X, Y };
+}
+function linea(ctx, X, Y, xs, ys, color, ancho = 1.4) {
+  ctx.strokeStyle = color; ctx.lineWidth = ancho; ctx.beginPath();
+  xs.forEach((x, i) => (i ? ctx.lineTo(X(x), Y(ys[i])) : ctx.moveTo(X(x), Y(ys[i])))); ctx.stroke();
+}
+function dibujarSenal(res) {
+  const { ctx, W, H } = prepararCanvas($("cvSenal"));
+  const t0 = res.t[0], ts = Array.from(res.t, (v) => v - t0);
+  const { X, Y } = ejes(ctx, W, H, [0, ts[ts.length - 1]], [0, 300], "Tiempo [s]", "I[n]");
+  linea(ctx, X, Y, ts, Array.from(res.I), css("--plot-line"));
+  ctx.setLineDash([6, 4]); linea(ctx, X, Y, [0, ts[ts.length - 1]], [res.Iu, res.Iu], css("--gold"), 1.6); ctx.setLineDash([]);
+  ctx.fillStyle = css("--gold-ink"); ctx.textAlign = "right"; ctx.font = "12px " + css("--font");
+  ctx.fillText("umbral " + fmt(res.Iu, 1), W - 14, Y(res.Iu) - 6);
+  // letras sobre los pulsos
+  ctx.fillStyle = css("--danger"); ctx.font = "bold 13px " + css("--mono"); ctx.textAlign = "center";
+  let ini = null, idx = 0;
+  const letras = res.texto.replace(/ /g, "");
+  res.R.forEach((r, i) => {
+    if (ini === null && r.nivel === 1) ini = r.ini;
+    const finLetra = (r.nivel === 0 && r.dur / res.T >= 2) || i === res.R.length - 1;
+    if (finLetra && ini !== null) {
+      const fin = r.nivel === 0 ? r.ini : r.ini + r.dur;
+      ctx.fillText(letras[idx++] || "", X((ini + fin) / 2 - t0), Y(280)); ini = null;
+    }
+  });
+}
+function dibujarEspectro(res) {
+  const e = res.esp, fmax = res.fs / 2;
+  let a = prepararCanvas($("cvAmp"));
+  let s = ejes(a.ctx, a.W, a.H, [0, fmax], [0, Math.max(...e.A.slice(1)) * 1.1 || 1], "Frecuencia [Hz]", "|X(f)|");
+  linea(a.ctx, s.X, s.Y, e.f, e.A, css("--plot-line"), 1.1);
+  a = prepararCanvas($("cvPsd"));
+  s = ejes(a.ctx, a.W, a.H, [0, fmax], [0, Math.max(...e.P) * 1.1 || 1], "Frecuencia [Hz]", "PSD");
+  linea(a.ctx, s.X, s.Y, e.f, e.P, css("--plot-line"), 1.1);
+  a.ctx.setLineDash([6, 4]); linea(a.ctx, s.X, s.Y, [e.B95, e.B95], [0, Math.max(...e.P)], css("--gold"), 1.8); a.ctx.setLineDash([]);
+  a.ctx.fillStyle = css("--gold-ink"); a.ctx.textAlign = "left"; a.ctx.fillText("B95 = " + fmt(e.B95) + " Hz", s.X(e.B95) + 6, 26);
+  $("espNota").textContent = `N = ${res.I.length} muestras, resolución ${fmt(res.fs / res.I.length, 3)} Hz. Pico principal (sobre 1 Hz) en ${fmt(e.pico)} Hz; B95 = ${fmt(e.B95)} Hz. Periodograma con ventana rectangular.`;
+}
+
+// Muestra un cuadro del video (el de mayor I[n]) con la ROI; un toque mueve la ROI
+async function dibujarCuadro(res) {
+  const cv = $("cvCuadro");
+  const nMax = res.I.reduce((b, v, i, arr) => (v > arr[b] ? i : b), 0);
+  const v = document.createElement("video"); v.muted = true; v.playsInline = true;
+  v.src = URL.createObjectURL(res.video.file);
+  await new Promise((ok) => (v.onloadeddata = ok));
+  v.currentTime = res.t[nMax];
+  await new Promise((ok) => (v.onseeked = ok));
+  const k = 480 / Math.max(res.video.vw, res.video.vh);
+  cv.width = Math.round(res.video.vw * k); cv.height = Math.round(res.video.vh * k);
+  const ctx = cv.getContext("2d"); ctx.drawImage(v, 0, 0, cv.width, cv.height);
+  URL.revokeObjectURL(v.src);
+  const e = cv.width / res.video.w, [x0, y0, rw, rh] = res.roi;
+  const pad = Math.max(0, 16 - rw * e) / 2;
+  ctx.lineWidth = 5; ctx.strokeStyle = "#000";
+  ctx.strokeRect(x0 * e - pad, y0 * e - pad, rw * e + 2 * pad, rh * e + 2 * pad);
+  ctx.lineWidth = 3; ctx.strokeStyle = "#ffd400";
+  ctx.strokeRect(x0 * e - pad, y0 * e - pad, rw * e + 2 * pad, rh * e + 2 * pad);
+}
+
+// ======================================================================
+// Flujo principal
+// ======================================================================
+function analizar(video, roi, Iu, T, frase) {
+  const I = intensidad(video, roi);
+  const t = video.t;
+  const fs = (t.length - 1) / (t[t.length - 1] - t[0]);
+  const R = rachas(I, t, Iu);
+  const texto = R.length ? aTexto(R, T) : "";
+  const err = cer(frase, texto);
+  const esp = espectro(I, fs);
+  const durMsg = R.length ? R[R.length - 1].ini + R[R.length - 1].dur - R[0].ini : 0;
+  return { video, roi, I, t, fs, R, texto, err, esp, Iu, T, frase, durMsg };
+}
+
+function mostrar(res) {
+  $("secRes").hidden = false;
+  $("resTitulo").textContent = "Resultado: " + res.video.file.name;
+  $("resTexto").innerHTML = (res.texto ? res.texto.replace(/ /g, "&nbsp;") : "(sin pulsos)") +
+    `<small>Texto reconstruido · frase transmitida: ${res.frase}</small>`;
+  const exacta = res.texto === res.frase.toUpperCase();
+  $("resCifras").innerHTML = [
+    ["CER", fmt(res.err.CER, 4), exacta ? '<span class="ok">frase exacta</span>' : '<span class="bad">con errores</span>'],
+    ["S + D + I", `${res.err.S}+${res.err.D}+${res.err.I}`, "sust., elim., ins."],
+    ["Duración del mensaje", fmt(res.durMsg) + " s", fmt(res.durMsg / res.T, 1) + " T"],
+    ["f<sub>s</sub>", fmt(res.fs) + " Hz", `${res.I.length} cuadros` + (res.video.perdidos ? `, ${res.video.perdidos} saltados` : "")],
+    ["Umbral / T", fmt(res.Iu, 1) + " / " + fmt(res.T * 1000, 1), "niveles / ms"],
+    ["B<sub>95</sub>", fmt(res.esp.B95) + " Hz", "pico " + fmt(res.esp.pico) + " Hz"],
+  ].map(([a, b, c]) => `<div class="cifra"><small>${a}</small><b>${b}</b><small>${c}</small></div>`).join("");
+  $("tbRachas").innerHTML = res.R.map((r, i) =>
+    `<tr><td class="n">${i + 1}</td><td class="n">${r.nivel}</td><td class="n">${fmt(r.ini - res.t[0], 3)}</td><td class="n">${fmt(r.dur, 3)}</td><td class="n">${fmt(r.dur / res.T)}</td><td>${r.decision || ""}</td></tr>`).join("");
+  dibujarSenal(res); dibujarEspectro(res); dibujarCuadro(res).catch(() => {});
+  if (res.video.perdidos > 0.01 * res.I.length) mostrarError(`Aviso: el navegador saltó ${res.video.perdidos} cuadros al leer el video. Las duraciones usan la hora de cada cuadro, pero si el resultado se ve raro, vuelve a cargarlo con la pantalla encendida y sin cambiar de pestaña.`);
+}
+
+async function procesar(file, titulo) {
+  mostrarError("");
+  $("secProg").hidden = false; $("progTitulo").textContent = titulo; $("progBarra").style.width = "0%";
+  try {
+    const prog = (p) => ($("progBarra").style.width = (p * 100).toFixed(0) + "%");
+    let v = await leerVideo(file, prog);
+    if (v.cuadros.length < 10) throw new Error("No se pudieron leer cuadros del video.");
+    // si el navegador saltó cuadros, se vuelve a leer a menor velocidad
+    for (const vel of [0.5, 0.25]) {
+      if (v.perdidos <= 0.01 * v.cuadros.length) break;
+      $("progTitulo").textContent = `Se saltaron ${v.perdidos} cuadros; leyendo de nuevo a ${String(vel).replace(".", ",")}× …`;
+      $("progBarra").style.width = "0%";
+      v = await leerVideo(file, prog, vel);
+    }
+    return v;
+  } finally { $("secProg").hidden = true; }
+}
+
+// --- calibración
+$("archCal").addEventListener("change", async (ev) => {
+  const file = ev.target.files[0]; ev.target.value = "";
+  if (!file) return;
+  try {
+    const v = await procesar(file, "Calibrando con " + file.name + "…");
+    const roi = ubicarROI(v, ...ROI_TAM[fuente]);
+    const I = intensidad(v, roi);
+    const Iu = umbralOtsu(I);
+    const R = rachas(I, v.t, Iu);
+    const T = R.reduce((a, r) => a + r.dur, 0) / 93;
+    $("inUmbral").value = Iu.toFixed(1); $("inT").value = (T * 1000).toFixed(1);
+    guardar("rx_cal", { Iu, T, fuente });
+    const res = analizar(v, roi, Iu, T, "PARIS PARIS");
+    $("calEstado").innerHTML = `Calibrado con ${file.name}: umbral ${fmt(Iu, 1)}, T = ${fmt(T * 1000, 1)} ms. Texto del video de calibración: <b>${res.texto}</b> (CER ${fmt(res.err.CER, 4)}).`;
+    actual = res; mostrar(res);
+  } catch (e) { mostrarError(e.message || String(e)); }
+});
+
+// --- decodificación
+$("archDec").addEventListener("change", async (ev) => {
+  const file = ev.target.files[0]; ev.target.value = "";
+  if (!file) return;
+  const Iu = parseFloat($("inUmbral").value), T = parseFloat($("inT").value) / 1000;
+  if (!(Iu > 0) || !(T > 0)) { mostrarError("Primero calibra con PARIS PARIS o escribe el umbral y T."); return; }
+  try {
+    const v = await procesar(file, "Decodificando " + file.name + "…");
+    const roi = ubicarROI(v, ...ROI_TAM[fuente]);
+    actual = analizar(v, roi, Iu, T, $("inFrase").value.trim().toUpperCase() || "SIS COM");
+    mostrar(actual);
+    $("secRes").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { mostrarError(e.message || String(e)); }
+});
+
+// --- mover la ROI a mano tocando el cuadro
+$("cvCuadro").addEventListener("click", (ev) => {
+  if (!actual) return;
+  const r = ev.currentTarget.getBoundingClientRect();
+  const cx = (ev.clientX - r.left) / r.width * actual.video.w, cy = (ev.clientY - r.top) / r.height * actual.video.h;
+  const [, , rw, rh] = actual.roi;
+  const roi = ubicarROI(actual.video, rw, rh, [cx, cy]);
+  actual = analizar(actual.video, roi, actual.Iu, actual.T, actual.frase);
+  mostrar(actual);
+});
+
+// --- fuente
+document.querySelectorAll("[data-fuente]").forEach((b) => {
+  b.setAttribute("aria-pressed", b.dataset.fuente === fuente);
+  b.addEventListener("click", () => {
+    fuente = b.dataset.fuente; guardar("rx_fuente", fuente);
+    document.querySelectorAll("[data-fuente]").forEach((o) => o.setAttribute("aria-pressed", o === b));
+  });
+});
+
+// --- descargas
+$("btnCsv").addEventListener("click", () => {
+  if (!actual) return;
+  const filas = ["t_s,I"].concat(Array.from(actual.I, (v, i) => `${(actual.t[i] - actual.t[0]).toFixed(4)},${v.toFixed(3)}`));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([filas.join("\n")], { type: "text/csv" }));
+  a.download = actual.video.file.name.replace(/\.[^.]+$/, "") + "_senal.csv"; a.click();
+});
+$("btnPng").addEventListener("click", () => {
+  if (!actual) return;
+  const a = document.createElement("a"); a.href = $("cvSenal").toDataURL("image/png");
+  a.download = actual.video.file.name.replace(/\.[^.]+$/, "") + "_senal.png"; a.click();
+});
+
+window.addEventListener("resize", () => { if (actual) { dibujarSenal(actual); dibujarEspectro(actual); } });
+
+// calibración guardada
+const cal = leer("rx_cal");
+if (cal && cal.Iu && cal.T) {
+  $("inUmbral").value = (+cal.Iu).toFixed(1); $("inT").value = (cal.T * 1000).toFixed(1);
+  $("calEstado").textContent = `Calibración guardada en este navegador: umbral ${fmt(cal.Iu, 1)}, T = ${fmt(cal.T * 1000, 1)} ms (${cal.fuente}).`;
+}
+</script>
+</body>
+</html>
