@@ -204,6 +204,7 @@ footer.pie .wrap { padding-block: 22px 30px; color: var(--muted); font-size: 0.9
       <li>La ROI se centra donde el brillo más varía a lo largo del video, que es la fuente que se prende y se apaga.</li>
       <li>I[n] es el promedio de los píxeles de la ROI en cada cuadro; t[n] es la hora del cuadro.</li>
       <li>b[n] = 1 si I[n] supera el umbral. Los cuadros seguidos con el mismo valor forman una racha, y su duración se mide con la hora de los cuadros.</li>
+      <li>El mensaje es el grupo de pulsos entre los márgenes apagados (pausas de más de 2,5 s). Lo que aparece antes o después de esos márgenes, como la página antes de pasar a negro, no se cuenta.</li>
       <li>Encendida: menos de 2T es punto, de 2T a 6T es raya. Apagada: desde 2T termina la letra y desde 5T termina la palabra.</li>
       <li>El patrón se busca en la tabla Morse («?» si no existe) y el texto se compara con la frase mediante la distancia de Levenshtein.</li>
     </ol>
@@ -223,6 +224,7 @@ const MORSE = {".-":"A","-...":"B","-.-.":"C","-..":"D",".":"E","..-.":"F","--."
   "-.-":"K",".-..":"L","--":"M","-.":"N","---":"O",".--.":"P","--.-":"Q",".-.":"R","...":"S","-":"T","..-":"U",
   "...-":"V",".--":"W","-..-":"X","-.--":"Y","--..":"Z"};
 const LADO_CORTO = 270;
+const MARGEN = 2.5;     // s: una pausa más larga que esto es un margen, no parte del mensaje
 const ROI_TAM = { pantalla: [24, 12], flash: [3, 3] };
 const fmt = (x, d = 2) => Number(x).toFixed(d).replace(".", ",");
 const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
@@ -388,7 +390,22 @@ function rachas(I, t, Iu) {
       ini = n;
     }
   }
-  return R.slice(1, -1);   // márgenes apagados
+  // El mensaje va entre dos márgenes apagados largos. Se separan los grupos de
+  // pulsos con pausas de más de MARGEN segundos y se queda el grupo con más pulsos.
+  // Así no se cuenta como pulso un nivel que aparece antes o después del mensaje
+  // (por ejemplo, la página antes de pasar a negro, o alguien que pasa).
+  const grupos = [[]];
+  for (const r of R) {
+    if (r.nivel === 0 && r.dur >= MARGEN) grupos.push([]);
+    else grupos[grupos.length - 1].push(r);
+  }
+  let mejor = [];
+  for (const g of grupos) {
+    while (g.length && g[0].nivel === 0) g.shift();
+    while (g.length && g[g.length - 1].nivel === 0) g.pop();
+    if (g.filter((r) => r.nivel === 1).length > mejor.filter((r) => r.nivel === 1).length) mejor = g;
+  }
+  return mejor;
 }
 
 // ======================================================================
